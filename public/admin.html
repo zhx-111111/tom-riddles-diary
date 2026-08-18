@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<script>
+!(function(j,a,g){j.__itrace_conf = {bid: 'f43basl8-6nqu7l3w',rel: '0.0.1', spa: true, uid: '', plugins:['jserror','interface','perf','resource','flow','blank']};var b = a.createElement("script");var d = a.getElementsByTagName("script")[0];b.type = "text/javascript";b.crossorigin = true;b.async = true;b.onload = function(){j.__itrace && j.__itrace.setReady()};d.parentNode.insertBefore(b,d);b.src = g})(window, document, "https://g.alicdn.com/woodpeckerx/itrace-next/itrace.iife.js")
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>日记管理 · Tom Riddle's Diary</title>
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+
+<!-- 登录 -->
+<div id="login-view" class="center-wrap hidden">
+  <div class="card login-card">
+    <h1>Tom Riddle's Diary</h1>
+    <p class="sub">管理后台 · 请输入访问密码</p>
+    <input id="login-password" type="password" placeholder="访问密码" autocomplete="current-password">
+    <button id="login-btn" class="primary-btn">进入管理页</button>
+    <p id="login-error" class="error"></p>
+    <p class="hint">密码在 Cloudflare 控制台的环境变量 <code>ADMIN_PASSWORD</code> 中设置。</p>
+  </div>
+</div>
+
+<!-- 管理面板 -->
+<div id="admin-view" class="hidden">
+  <header>
+    <h1>日记管理后台</h1>
+    <div>
+      <button id="logout-btn" class="ghost-btn">退出登录</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>运行状态</h2>
+      <ul id="status-list" class="status-list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>书写参数</h2>
+      <label>
+        <span>回复书写速度（毫秒 / 字符，越小越快）</span>
+        <div class="row">
+          <input id="f-writeSpeed" type="range" min="10" max="200" step="1">
+          <output id="o-writeSpeed"></output>
+        </div>
+      </label>
+      <label>
+        <span>笔迹粗细（0.5 – 2.0）</span>
+        <div class="row">
+          <input id="f-strokeWidth" type="range" min="0.5" max="2" step="0.05">
+          <output id="o-strokeWidth"></output>
+        </div>
+      </label>
+      <label>
+        <span>停笔提交等待（毫秒：停笔多久后日记"喝掉"墨迹）</span>
+        <div class="row">
+          <input id="f-idleMs" type="range" min="800" max="8000" step="100">
+          <output id="o-idleMs"></output>
+        </div>
+      </label>
+      <label>
+        <span>回复最大长度（tokens，防失控护栏）</span>
+        <div class="row">
+          <input id="f-maxTokens" type="range" min="256" max="8192" step="128">
+          <output id="o-maxTokens"></output>
+        </div>
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>记忆</h2>
+      <label>
+        <span>保留历史对话轮数（随每次请求带给模型的近期页数）</span>
+        <div class="row">
+          <input id="f-historyTurns" type="range" min="0" max="20" step="1">
+          <output id="o-historyTurns"></output>
+        </div>
+      </label>
+      <label>
+        <span>记忆目录条数（供"show me…"召唤过往页面的目录大小）</span>
+        <div class="row">
+          <input id="f-catalogSize" type="range" min="0" max="30" step="1">
+          <output id="o-catalogSize"></output>
+        </div>
+      </label>
+      <label>
+        <span>最多记住的页数（超出则遗忘最旧的）</span>
+        <div class="row">
+          <input id="f-maxMemories" type="range" min="10" max="400" step="10">
+          <output id="o-maxMemories"></output>
+        </div>
+      </label>
+      <button id="forget-btn" class="danger-btn">清空所有记忆</button>
+    </section>
+
+    <section class="card">
+      <h2>信纸主题</h2>
+      <p class="hint">内置主题：Midnight Ink（纯黑信纸 + 米白笔迹）、Marauder's Map（活点地图）、Aged Letter（复古做旧黄 + 黑偏褐笔迹）。可在下方自定义更多信纸。</p>
+      <div id="custom-themes"></div>
+      <div class="add-theme">
+        <input id="nt-name" type="text" placeholder="主题名称" maxlength="24">
+        <label class="color-field">信纸 <input id="nt-paper" type="color" value="#f5f0e4"></label>
+        <label class="color-field">笔迹 <input id="nt-ink" type="color" value="#241812"></label>
+        <button id="add-theme-btn" class="ghost-btn">＋ 添加主题</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>模型（在 CF 控制台环境变量中配置）</h2>
+      <ul id="model-list" class="status-list"></ul>
+      <p class="hint">多个 Key 用英文逗号分隔，将自动轮转以规避限流（429）。主模型不可用时自动降级到备用视觉模型；主模型无法读取图片时，备用模型先誊写笔迹、再由主模型作答。</p>
+    </section>
+
+    <div class="actions">
+      <button id="save-btn" class="primary-btn">保存配置</button>
+      <button id="reset-btn" class="ghost-btn">恢复默认值</button>
+      <span id="save-msg"></span>
+    </div>
+  </main>
+</div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

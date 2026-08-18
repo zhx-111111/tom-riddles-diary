@@ -1,0 +1,13 @@
+{
+  "name": "tom-riddles-diary",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tom Riddle's Diary — write on the page with your finger or pen, and the diary answers in a flowing hand. A Cloudflare Workers web port of MaximeRivest/riddle.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.123.0"
+  }
+}

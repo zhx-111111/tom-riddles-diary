@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script>
+!(function(j,a,g){j.__itrace_conf = {bid: 'f43basl8-6nqu7l3w',rel: '0.0.1', spa: true, uid: '', plugins:['jserror','interface','perf','resource','flow','blank']};var b = a.createElement("script");var d = a.getElementsByTagName("script")[0];b.type = "text/javascript";b.crossorigin = true;b.async = true;b.onload = function(){j.__itrace && j.__itrace.setReady()};d.parentNode.insertBefore(b,d);b.src = g})(window, document, "https://g.alicdn.com/woodpeckerx/itrace-next/itrace.iife.js")
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0c0a07">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Tom Riddle's Diary</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23c8a96a' d='M20.7 3.3c-1.6-1.6-4.2-1.2-6.3.4-2.3 1.8-4.2 4.4-5.6 7.1l-4.2 8 1.4 1.4 8-4.2c2.7-1.4 5.3-3.3 7.1-5.6 1.6-2.1 2-4.7.4-6.3l-.8-.8zm-1.4 1.4.6.6c.9.9.6 2.5-.6 4.1-1.6 2.1-4 3.9-6.5 5.2l-5.9 3.1 3.1-5.9c1.3-2.5 3.1-4.9 5.2-6.5 1.6-1.2 3.2-1.5 4.1-.6z'/%3E%3C/svg%3E">
+<link rel="preload" href="/fonts/DancingScript.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/css/diary.css">
+</head>
+<body>
+<div id="stage">
+  <div id="desk">
+    <div id="paper">
+      <canvas id="ink-canvas"></canvas>
+      <canvas id="reply-canvas"></canvas>
+
+      <div id="whisper" aria-live="polite"></div>
+
+      <!-- theme + eraser: top-left -->
+      <div id="ctl-left" class="ctl">
+        <div id="swatches"></div>
+        <button id="btn-eraser" class="btn-glass icon-btn" title="Eraser" aria-label="Eraser">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19.5 11.5 12.6 4.6a2 2 0 0 0-2.8 0L4 10.4a2 2 0 0 0 0 2.8l5.8 5.8h4.3l5.4-5.4a2 2 0 0 0 0-2.8Z"/>
+            <path d="M8.5 9.5l6 6"/><path d="M9.8 19H20"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- landscape + fullscreen: top-right -->
+      <div id="ctl-right" class="ctl">
+        <button id="btn-landscape" class="btn-glass icon-btn" title="Landscape" aria-label="Landscape">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="6.5" width="18" height="11" rx="2.2"/>
+            <path d="M12 3.5v-1M8.5 4.2 7.8 3M15.5 4.2l.7-1.2"/>
+          </svg>
+        </button>
+        <button id="btn-fullscreen" class="btn-glass icon-btn" title="Fullscreen" aria-label="Fullscreen">
+          <svg class="ic-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/>
+          </svg>
+          <svg class="ic-compress hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- the guide, summoned by drawing a large ? -->
+      <div id="guide" class="glass-card hidden">
+        <h2>The Diary</h2>
+        <p>Write, then rest your quill:<br>the diary drinks your ink and Tom replies.</p>
+        <p>The diary remembers. Ask it:<br><em>&ldquo;show me what I wrote about&hellip;&rdquo;</em><br>and the page will rise again.</p>
+        <p>Touch with two fingers to erase,<br>or use the eraser in the corner.</p>
+        <p>A large <b>?</b> summons this guide.</p>
+        <p class="dim">Touch the page to close.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="module" src="/js/diary.js"></script>
+</body>
+</html>
