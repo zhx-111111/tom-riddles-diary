@@ -88,9 +88,10 @@ export class InkPad {
       const d = Math.hypot(pt.x - prev.x, pt.y - prev.y);
       const dt = Math.max(1, pt.t - prev.t);
       const v = d / dt; // px per ms
-      wf = clamp(1.28 - v * 0.30, 0.55, 1.3);
+      wf = clamp(1.15 - v * 0.18, 0.72, 1.18);
     }
-    const pf = 0.55 + clamp(pt.p, 0, 1) * 0.9;
+    // Pressure leads the hand: a wider, more responsive curve.
+    const pf = 0.38 + clamp(pt.p, 0, 1) * 1.3;
     return 2.15 * this.penScale * this.strokeScale * wf * pf * 2;
   }
 
@@ -160,6 +161,9 @@ export class InkPad {
       p: e.pressure && e.pressure > 0 ? e.pressure : 0.5,
     };
     pt.w = this.widthFor(pt, prev);
+    // Ease the width along the stroke so pressure changes flow like ink,
+    // never stepping between points.
+    if (prev) pt.w = prev.w * 0.45 + pt.w * 0.55;
     this.current.pts.push(pt);
     this._renderTail();
     this.onChange?.();

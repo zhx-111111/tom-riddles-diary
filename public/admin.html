@@ -1,10 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script>
-!(function(j,a,g){j.__itrace_conf = {bid: 'f43basl8-6nqu7l3w',rel: '0.0.1', spa: true, uid: '', plugins:['jserror','interface','perf','resource','flow','blank']};var b = a.createElement("script");var d = a.getElementsByTagName("script")[0];b.type = "text/javascript";b.crossorigin = true;b.async = true;b.onload = function(){j.__itrace && j.__itrace.setReady()};d.parentNode.insertBefore(b,d);b.src = g})(window, document, "https://g.alicdn.com/woodpeckerx/itrace-next/itrace.iife.js")
-</script>
-
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>日记管理 · Tom Riddle's Diary</title>
@@ -67,6 +63,13 @@
         <div class="row">
           <input id="f-maxTokens" type="range" min="256" max="8192" step="128">
           <output id="o-maxTokens"></output>
+        </div>
+      </label>
+      <label>
+        <span>单次输出长度（字符：Tom 单页最多写多少字，超出以省略号收尾）</span>
+        <div class="row">
+          <input id="f-maxReplyChars" type="range" min="100" max="3000" step="50">
+          <output id="o-maxReplyChars"></output>
         </div>
       </label>
     </section>

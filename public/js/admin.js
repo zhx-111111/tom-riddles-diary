@@ -11,7 +11,7 @@
   let state = null;
   let customThemes = [];
 
-  const NUM_FIELDS = ["writeSpeed", "strokeWidth", "historyTurns", "catalogSize", "idleMs", "maxTokens", "maxMemories"];
+  const NUM_FIELDS = ["writeSpeed", "strokeWidth", "historyTurns", "catalogSize", "idleMs", "maxTokens", "maxReplyChars", "maxMemories"];
 
   // ------------------------------------------------------------- api calls
 

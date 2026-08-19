@@ -15,6 +15,7 @@ export const DEFAULT_CONFIG = {
   catalogSize: 10,    // remembered pages listed for "show me…" conjuring
   idleMs: 2800,       // pen rest before the diary drinks the ink
   maxTokens: 2000,    // runaway guard on the reply
+  maxReplyChars: 600, // 单次输出长度: most characters Tom writes on one page
   maxMemories: 400,   // oldest pages beyond this are forgotten
   themes: [],         // custom themes: {id, name, paper, ink}
 };
@@ -28,7 +29,7 @@ export const BUILTIN_THEMES = [
   { id: "aged",     name: "Aged Letter",      paper: "#e8d5a3", ink: "#241812", texture: "aged" },
 ];
 
-const NUM_FIELDS = ["writeSpeed", "strokeWidth", "historyTurns", "catalogSize", "idleMs", "maxTokens", "maxMemories"];
+const NUM_FIELDS = ["writeSpeed", "strokeWidth", "historyTurns", "catalogSize", "idleMs", "maxTokens", "maxReplyChars", "maxMemories"];
 
 function clampNum(v, lo, hi, fallback) {
   const n = Number(v);
@@ -56,6 +57,7 @@ export function mergeConfig(overrides) {
   cfg.catalogSize = Math.round(clampNum(cfg.catalogSize, 0, 30, DEFAULT_CONFIG.catalogSize));
   cfg.idleMs = clampNum(cfg.idleMs, 800, 8000, DEFAULT_CONFIG.idleMs);
   cfg.maxTokens = Math.round(clampNum(cfg.maxTokens, 256, 8192, DEFAULT_CONFIG.maxTokens));
+  cfg.maxReplyChars = Math.round(clampNum(cfg.maxReplyChars, 100, 3000, DEFAULT_CONFIG.maxReplyChars));
   cfg.maxMemories = Math.round(clampNum(cfg.maxMemories, 10, 400, DEFAULT_CONFIG.maxMemories));
   return cfg;
 }

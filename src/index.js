@@ -136,7 +136,7 @@ function turnText(catalogLines) {
 /// Feeds streamed fragments through the StreamParser and pushes events to
 /// the client; tracks the reply + transcript for memory keeping.
 class ReplyRunner {
-  constructor(catalogIds, send) {
+  constructor(catalogIds, send, maxChars) {
     this.parser = new StreamParser(catalogIds);
     this.acc = "";
     this.send = send;
@@ -144,6 +144,8 @@ class ReplyRunner {
     this.reply = "";
     this.transcript = null;
     this.showId = null;
+    this.maxChars = maxChars || Infinity; // 单次输出长度 (character cap)
+    this.capped = false;
   }
   feed(frag) {
     this.acc += frag;
@@ -155,9 +157,21 @@ class ReplyRunner {
   emit(ev) {
     if (ev.err) throw new ChatError(0, ev.err);
     if (ev.type === "ink") {
+      if (this.capped) return; // the page is full — no more ink
+      let text = ev.text;
+      const room = this.maxChars - this.reply.length;
+      if (text.length > room) {
+        // Cut at the last clean boundary that still fits, then trail off.
+        let cut = Math.max(0, room);
+        const b = text.slice(0, cut);
+        const m = b.match(/.*[.!?\u2026]\s*$|.*[，、;；:：\s]/s);
+        if (m && m[0].trim().length >= 8) cut = m[0].length;
+        text = text.slice(0, cut).trimEnd() + "\u2026";
+        this.capped = true;
+      }
       this.gotContent = true;
-      this.reply += (this.reply ? " " : "") + ev.text.trim();
-      this.send({ type: "ink", text: ev.text });
+      this.reply += (this.reply ? " " : "") + text.trim();
+      this.send({ type: "ink", text });
     } else if (ev.type === "show") {
       this.showId = ev.id;
       this.send({ type: "show", id: ev.id });
@@ -217,7 +231,7 @@ async function handleChat(req, env) {
       const send = (obj) => {
         try { controller.enqueue(encoder.encode("data: " + JSON.stringify(obj) + "\n\n")); } catch { /* closed */ }
       };
-      const runner = new ReplyRunner(catalog.ids, send);
+      const runner = new ReplyRunner(catalog.ids, send, cfg.maxReplyChars);
       try {
         try {
           await runStream(env, provs.primary, msgsWithImage, cfg, runner);

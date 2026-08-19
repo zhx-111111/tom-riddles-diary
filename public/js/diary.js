@@ -157,7 +157,40 @@ function markWriting(on) {
   if (on) {
     document.body.classList.add("writing");
   } else {
+    if (state.replyActive) return; // Tom is still writing — stay frosty
     state.writingGrace = setTimeout(() => document.body.classList.remove("writing"), 900);
+  }
+}
+
+/// The liquid-glass desk: pastel blobs drifting on randomized paths —
+/// every visit flows a little differently.
+function initLiquidBackground() {
+  const desk = $("desk");
+  const palette = [
+    "#b8d8ff", // 浅蓝
+    "#d4c5ff", // 浅紫
+    "#b9a3e8", // 紫罗兰
+    "#9aa7e8", // 靛蓝
+    "#c3e6c8", // 葱绿
+    "#f6e7b8", // 鹅黄
+    "#ffd6e4", // 浅粉
+    "#f5bfca", // 浅玫瑰红
+    "#bfe6e8", // 天青色
+  ];
+  const rnd = (lo, hi) => lo + Math.random() * (hi - lo);
+  const shuffled = palette.slice().sort(() => Math.random() - 0.5);
+  for (let i = 0; i < 7; i++) {
+    const b = document.createElement("div");
+    b.className = "blob k" + (i % 3);
+    const size = rnd(26, 52);
+    b.style.width = size + "vmax";
+    b.style.height = size + "vmax";
+    b.style.left = rnd(-12, 78) + "%";
+    b.style.top = rnd(-14, 74) + "%";
+    b.style.background = shuffled[i % shuffled.length];
+    b.style.setProperty("--dur", rnd(19, 38).toFixed(1) + "s");
+    b.style.setProperty("--delay", (-rnd(0, 30)).toFixed(1) + "s");
+    desk.appendChild(b);
   }
 }
 
@@ -203,6 +236,8 @@ async function commitPage() {
       if (ev.type === "ink") {
         whisper("");
         state.pageHasReply = true;
+        state.replyActive = true;
+        document.body.classList.add("writing");
         hand.write(ev.text);
       } else if (ev.type === "show") {
         whisper("");
@@ -210,17 +245,22 @@ async function commitPage() {
       } else if (ev.type === "error") {
         whisper("");
         state.pageHasReply = true;
+        state.replyActive = true;
+        document.body.classList.add("writing");
         hand.write(ev.message);
       } else if (ev.type === "done") {
         break;
       }
     }
+    state.replyActive = false;
+    if (!hand.raf) document.body.classList.remove("writing");
   } catch (e) {
     if (ac.signal.aborted) { state.busy = false; return; }
     whisper("");
     state.pageHasReply = true;
     hand.write("The diary falls silent. (the oracle cannot be reached)");
   }
+  state.replyActive = false;
   state.busy = false;
 }
 
@@ -234,6 +274,8 @@ function newPageIfNeeded() {
   if (state.busy) {
     state.abort?.abort();
     state.busy = false;
+    state.replyActive = false;
+    document.body.classList.remove("writing");
     whisper("");
   }
   return false;
