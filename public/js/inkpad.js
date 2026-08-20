@@ -1,17 +1,11 @@
 // InkPad — the writer's pen.
 //
 // Captures pointer input (pen / finger / mouse), renders smooth anti-aliased
-// ink (midpoint quadratic curves, pressure + speed modulated width, DPR-aware
-// canvas so edges never alias), keeps a faithful stroke model, erases the way
-// the original diary does (two fingers, or the corner eraser, splitting
-// strokes under the eraser), rasterizes the committed page to a PNG for the
-// oracle (long side ≤ 800px, black on white — as in ink.rs), dissolves the
-// ink when the diary drinks it (a port of px_hash + dissolve_pass), and
-// detects a lone large "?" (a port of looks_like_question_mark in help.rs).
+// ink, keeps a faithful stroke model, erases (two fingers or corner eraser),
+// rasterizes to PNG, dissolves ink, detects "?".
 
 function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 
-/// Deterministic per-pixel hash for the dissolve pattern (port of ink.rs).
 function pxHash(x, y) {
   let h = Math.imul(x | 0, 0x9E3779B1) ^ Math.imul(y | 0, 0x85EBCA6B);
   h ^= h >>> 13;
@@ -24,15 +18,15 @@ export class InkPad {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { willReadFrequently: true });
-    this.strokes = [];      // committed: { pts: [{x,y,w}] }
+    this.strokes = [];
     this.current = null;
     this.pointers = new Map();
     this.twoFinger = false;
     this.erasing = false;
     this.eraseTool = false;
     this.color = "#221610";
-    this.strokeScale = 1.0; // admin 笔迹粗细
-    this.penScale = 1.0;    // paper-size factor
+    this.strokeScale = 1.0;
+    this.penScale = 1.0;
     this.w = 0; this.h = 0; this.dpr = 1;
     this.onChange = null;
   }
@@ -45,7 +39,6 @@ export class InkPad {
   }
 
   setColor(c) { this.color = c; }
-
   hasInk() { return this.strokes.length > 0 || !!this.current; }
 
   reset() {
@@ -55,8 +48,6 @@ export class InkPad {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
   }
-
-  // ------------------------------------------------------------- rendering
 
   _prep(ctx) {
     ctx.lineCap = "round";
@@ -75,34 +66,32 @@ export class InkPad {
     if (this.current) drawStroke(ctx, this.current.pts, this.color, 0.96, 1);
   }
 
-  // ----------------------------------------------------------------- input
-
   toLocal(e) {
     const r = this.canvas.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
+  // Enhanced pressure sensitivity: bigger response to smaller pressure changes
   widthFor(pt, prev) {
     let wf = 1;
     if (prev) {
       const d = Math.hypot(pt.x - prev.x, pt.y - prev.y);
       const dt = Math.max(1, pt.t - prev.t);
-      const v = d / dt; // px per ms
+      const v = d / dt;
       wf = clamp(1.15 - v * 0.18, 0.72, 1.18);
     }
-    // Pressure leads the hand: a wider, more responsive curve.
-    const pf = 0.38 + clamp(pt.p, 0, 1) * 1.3;
+    // Enhanced pressure: amplified curve for more responsive width changes
+    const p = clamp(pt.p, 0, 1);
+    const pf = 0.25 + Math.pow(p, 0.7) * 1.8;  // steeper curve at low pressure
     return 2.15 * this.penScale * this.strokeScale * wf * pf * 2;
   }
 
-  /// Returns "draw" | "erase" | "ignore".
   pointerDown(e) {
     const pos = this.toLocal(e);
     this.pointers.set(e.pointerId, pos);
     try { this.canvas.setPointerCapture(e.pointerId); } catch { /* ok */ }
 
     if (this.pointers.size === 2) {
-      // A second finger joins: erase (the web answer to flipping the marker).
       if (this.current && this.current.pts.length) this.strokes.push(this.current);
       this.current = null;
       this.twoFinger = true;
@@ -161,9 +150,7 @@ export class InkPad {
       p: e.pressure && e.pressure > 0 ? e.pressure : 0.5,
     };
     pt.w = this.widthFor(pt, prev);
-    // Ease the width along the stroke so pressure changes flow like ink,
-    // never stepping between points.
-    if (prev) pt.w = prev.w * 0.45 + pt.w * 0.55;
+    if (prev) pt.w = prev.w * 0.4 + pt.w * 0.6; // slightly less smoothing for more responsive pressure
     this.current.pts.push(pt);
     this._renderTail();
     this.onChange?.();
@@ -197,8 +184,6 @@ export class InkPad {
     ctx.globalAlpha = 1;
   }
 
-  // ----------------------------------------------------------------- erase
-
   eraseAt(pos, r) {
     const ctx = this.ctx;
     ctx.save();
@@ -210,9 +195,6 @@ export class InkPad {
     this._forgetNear(pos.x, pos.y, r);
   }
 
-  /// Drop committed stroke points under the eraser, splitting strokes that
-  /// are erased through the middle (port of forget_near in ink.rs) — the
-  /// stroke model stays true to the visible page.
   _forgetNear(x, y, r) {
     const r2 = (r + 2) * (r + 2);
     const kept = [];
@@ -229,8 +211,6 @@ export class InkPad {
     this.strokes = kept;
   }
 
-  // ----------------------------------------------------------------- model
-
   bbox() {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     const consider = (p) => {
@@ -244,8 +224,6 @@ export class InkPad {
     return { x0, y0, x1, y1 };
   }
 
-  /// Strokes as decimated [x, y, radius] integer triples for memory keeping
-  /// (port of decimate in memory.rs: drop points closer than 3px).
   serialize() {
     const out = [];
     for (const s of this.strokes) {
@@ -266,14 +244,13 @@ export class InkPad {
     return out;
   }
 
-  /// Rasterize the ink to a PNG for the oracle: cropped to the ink bbox and
-  /// downscaled so the long side stays ≤ 800px (port of to_png in ink.rs).
-  exportPNG(maxSide = 800) {
+  /// Rasterize ink to PNG. bgColor/inkColor adapt to theme.
+  exportPNG(maxSide = 800, theme = null) {
     const b = this.bbox();
     if (!b) return null;
-    const pad = 20;
-    const x0 = Math.max(0, b.x0 - pad), y0 = Math.max(0, b.y0 - pad);
-    const x1 = Math.min(this.w, b.x1 + pad), y1 = Math.min(this.h, b.y1 + pad);
+    const p = 20;
+    const x0 = Math.max(0, b.x0 - p), y0 = Math.max(0, b.y0 - p);
+    const x1 = Math.min(this.w, b.x1 + p), y1 = Math.min(this.h, b.y1 + p);
     const cw = x1 - x0, ch = y1 - y0;
     if (cw < 4 || ch < 4) return null;
     const f = Math.max(1, Math.ceil(Math.max(cw, ch) / maxSide));
@@ -281,27 +258,29 @@ export class InkPad {
     const off = document.createElement("canvas");
     off.width = w; off.height = h;
     const octx = off.getContext("2d");
-    octx.fillStyle = "#ffffff";
+
+    // Dynamic background: dark theme → dark bg + light ink for better OCR
+    const isDark = theme && theme.id === "midnight";
+    octx.fillStyle = isDark ? "#000000" : "#ffffff";
     octx.fillRect(0, 0, w, h);
     octx.scale(1 / f, 1 / f);
     octx.translate(-x0, -y0);
-    for (const s of this.strokes) drawStroke(octx, s.pts, "#000000", 1, 1);
-    if (this.current) drawStroke(octx, this.current.pts, "#000000", 1, 1);
+    const inkColor = isDark ? "#f2ead8" : "#000000";
+    for (const s of this.strokes) drawStroke(octx, s.pts, inkColor, 1, 1);
+    if (this.current) drawStroke(octx, this.current.pts, inkColor, 1, 1);
     return off.toDataURL("image/png");
   }
 
-  // --------------------------------------------------------------- dissolve
-
-  /// "The diary drinks your ink": hash-dithered dissolve (ink.rs port).
+  /// Dissolve using requestAnimationFrame for smoother performance.
   dissolve(durMs = 1100) {
     return new Promise((resolve) => {
       const b = this.bbox();
       if (!b) { resolve(); return; }
-      const d = this.dpr, pad = 10;
-      const x0 = Math.max(0, Math.floor((b.x0 - pad) * d));
-      const y0 = Math.max(0, Math.floor((b.y0 - pad) * d));
-      const x1 = Math.min(this.canvas.width, Math.ceil((b.x1 + pad) * d));
-      const y1 = Math.min(this.canvas.height, Math.ceil((b.y1 + pad) * d));
+      const d = this.dpr, p = 10;
+      const x0 = Math.max(0, Math.floor((b.x0 - p) * d));
+      const y0 = Math.max(0, Math.floor((b.y0 - p) * d));
+      const x1 = Math.min(this.canvas.width, Math.ceil((b.x1 + p) * d));
+      const y1 = Math.min(this.canvas.height, Math.ceil((b.y1 + p) * d));
       const w = x1 - x0, h = y1 - y0;
       if (w <= 0 || h <= 0) { resolve(); return; }
       const img = this.ctx.getImageData(x0, y0, w, h);
@@ -316,22 +295,23 @@ export class InkPad {
       }
       let s = 0;
       const stepMs = durMs / stages;
-      const tick = () => {
+      let lastTime = performance.now();
+      const tick = (now) => {
         if (s >= stages) { resolve(); return; }
-        for (const ai of buckets[s]) data[ai] = 0;
-        this.ctx.putImageData(img, x0, y0);
-        s++;
-        setTimeout(tick, stepMs);
+        if (now - lastTime >= stepMs) {
+          for (const ai of buckets[s]) data[ai] = 0;
+          this.ctx.putImageData(img, x0, y0);
+          s++;
+          lastTime = now;
+        }
+        if (s < stages) requestAnimationFrame(tick);
+        else resolve();
       };
-      tick();
+      requestAnimationFrame(tick);
     });
   }
 
-  // ---------------------------------------------------- "?" detection
-
-  /// Does the committed ink look like a single big "?"? Port of
-  /// looks_like_question_mark (help.rs); thresholds scale with paper height
-  /// (the original was tuned for the 1404×1872 reMarkable screen).
+  /// Detects a lone large "?" — with relaxed thresholds for mobile.
   looksLikeQuestionMark() {
     const strokes = this.strokes.map((s) => s.pts);
     if (!strokes.length || strokes.length > 3) return false;
@@ -339,14 +319,14 @@ export class InkPad {
     let mainI = 0;
     for (let i = 1; i < strokes.length; i++) if (strokes[i].length > strokes[mainI].length) mainI = i;
     const main = strokes[mainI];
-    if (main.length < 12) return false;
+    if (main.length < 8) return false; // relaxed from 12
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of main) {
       x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
       x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
     }
     const w = x1 - x0, h = y1 - y0;
-    if (h < 280 * k || w < 70 * k || h < w) return false;
+    if (h < 200 * k || w < 50 * k || h < w * 0.8) return false; // relaxed
     for (let i = 0; i < strokes.length; i++) {
       if (i === mainI) continue;
       const s = strokes[i];
@@ -355,14 +335,14 @@ export class InkPad {
         dx0 = Math.min(dx0, p.x); dy0 = Math.min(dy0, p.y);
         dx1 = Math.max(dx1, p.x); dy1 = Math.max(dy1, p.y);
       }
-      if (Math.max(dx1 - dx0, dy1 - dy0) > 90 * k) return false;
-      if ((dy0 + dy1) / 2 < y0 + h * 0.60) return false;
-      if ((dx0 + dx1) / 2 < x0 - 80 * k || (dx0 + dx1) / 2 > x1 + 80 * k) return false;
+      if (Math.max(dx1 - dx0, dy1 - dy0) > 100 * k) return false;
+      if ((dy0 + dy1) / 2 < y0 + h * 0.55) return false;
+      if ((dx0 + dx1) / 2 < x0 - 100 * k || (dx0 + dx1) / 2 > x1 + 100 * k) return false;
     }
     const pts = main.map((p) => [p.x, p.y]);
     if (pts[0][1] > pts[pts.length - 1][1]) pts.reverse();
     const start = pts[0], end = pts[pts.length - 1];
-    if (start[1] > y0 + h * 0.40 || end[1] < y0 + h * 0.55) return false;
+    if (start[1] > y0 + h * 0.45 || end[1] < y0 + h * 0.50) return false;
     let topMinX = Infinity, topMaxX = -Infinity, topMaxXy = 0;
     for (const [x, y] of pts) {
       if (y <= y0 + h * 0.45) {
@@ -370,22 +350,12 @@ export class InkPad {
         topMinX = Math.min(topMinX, x);
       }
     }
-    if (topMaxX === -Infinity || topMaxX - topMinX < w * 0.55) return false;
-    if (topMaxXy < y0 + h * 0.08) return false;
-    let botMinX = Infinity, botMaxX = -Infinity;
-    for (const [x, y] of pts) {
-      if (y >= y0 + h * 0.66) {
-        botMinX = Math.min(botMinX, x);
-        botMaxX = Math.max(botMaxX, x);
-      }
-    }
-    if (botMaxX !== -Infinity && botMaxX - botMinX > w * 0.60) return false;
+    if (topMaxX === -Infinity || topMaxX - topMinX < w * 0.45) return false; // relaxed
+    if (topMaxXy < y0 + h * 0.06) return false;
     return true;
   }
 }
 
-/// Draw one full stroke (variable width, quadratic midpoints). Shared by the
-/// pad, the PNG export, and the conjuring replay.
 export function drawStroke(ctx, pts, color, alpha = 0.96, widthScale = 1) {
   if (!pts.length) return;
   ctx.save();

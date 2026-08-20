@@ -1,6 +1,7 @@
 /* Tom Riddle's Diary — front end styles.
    Apple-style frosted glass controls, letter-paper themes, fullscreen and
-   forced-landscape layouts. All icons are inline SVG (see index.html). */
+   forced-landscape layouts. Dark mode dims background + controls only;
+   the letter paper itself never changes. */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -17,6 +18,7 @@ html, body {
   overflow: hidden;
   background: linear-gradient(125deg, #dbe6fb 0%, #e6defa 30%, #dff2ea 55%, #fbf0d6 80%, #ffe4ee 100%);
   overscroll-behavior: none;
+  transition: filter 0.6s ease;
 }
 
 body {
@@ -25,10 +27,89 @@ body {
   user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
-  color-scheme: light;
+  color-scheme: light dark;
+}
+
+/* Dark mode: dim background and controls, paper stays unchanged */
+@media (prefers-color-scheme: dark) {
+  html, body {
+    filter: brightness(0.82);
+  }
+  #page-header { color: #e0d8c8; }
+  #page-footer { color: #bbb4a4; }
+  .float-btn { background: rgba(80, 70, 60, 0.55) !important; color: #e0d8c8 !important; }
 }
 
 .hidden { display: none !important; }
+
+/* ------------------------------------------------------------------ page header */
+
+#page-header {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+  transition: opacity 0.4s ease;
+  color: #3a2c1a;
+}
+
+#page-icon {
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 8px rgba(40, 30, 80, 0.28));
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+#page-icon:active { transform: scale(0.92); }
+#page-icon svg { width: 100%; height: 100%; display: block; }
+
+#page-title {
+  font-family: "Dancing Script", Georgia, cursive;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* Hide page header in fullscreen */
+body.fs #page-header { opacity: 0; pointer-events: none; }
+
+/* ------------------------------------------------------------------ float btn */
+
+.float-btn {
+  position: fixed;
+  z-index: 99;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(18px) saturate(1.7);
+  backdrop-filter: blur(18px) saturate(1.7);
+  background: rgba(128, 128, 128, 0.18);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  color: #3a2c1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.4s ease, transform 0.25s ease;
+}
+.float-btn:active { transform: scale(0.92); }
+.float-btn svg { width: 20px; height: 20px; display: block; }
+
+#btn-music {
+  bottom: max(20px, env(safe-area-inset-bottom));
+  right: max(16px, env(safe-area-inset-right));
+}
+
+body.fs .float-btn { opacity: 0; pointer-events: none; }
+body.writing .float-btn { opacity: 0.15; }
 
 /* ------------------------------------------------------------------ stage */
 
@@ -38,7 +119,6 @@ body {
   transform-origin: center center;
 }
 
-/* Forced landscape on a portrait screen: rotate a viewport-sized stage. */
 #stage.rotated {
   left: 50%;
   top: 50%;
@@ -58,45 +138,12 @@ body {
   align-items: center;
   justify-content: center;
   padding: 14px;
-  padding-top: max(14px, env(safe-area-inset-top));
-  padding-bottom: max(14px, env(safe-area-inset-bottom));
+  padding-top: max(50px, calc(env(safe-area-inset-top) + 42px));
+  padding-bottom: max(50px, calc(env(safe-area-inset-bottom) + 42px));
   padding-left: max(14px, env(safe-area-inset-left));
   padding-right: max(14px, env(safe-area-inset-right));
   background: transparent;
   overflow: hidden;
-}
-
-/* The letter paper never follows the system scheme or the flowing desk. */
-
-/* Liquid-glass desk: soft pastel blobs drifting in real time (positions,
-   sizes and speeds are randomized on every page load by diary.js). */
-.blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(64px);
-  opacity: 0.55;
-  pointer-events: none;
-  will-change: transform;
-  z-index: 0;
-}
-.blob.k0 { animation: driftA var(--dur, 26s) ease-in-out var(--delay, 0s) infinite alternate; }
-.blob.k1 { animation: driftB var(--dur, 30s) ease-in-out var(--delay, 0s) infinite alternate; }
-.blob.k2 { animation: driftC var(--dur, 24s) ease-in-out var(--delay, 0s) infinite alternate; }
-
-@keyframes driftA {
-  0%   { transform: translate(0, 0) scale(1); }
-  50%  { transform: translate(9vmax, -7vmax) scale(1.18); }
-  100% { transform: translate(-6vmax, 8vmax) scale(0.94); }
-}
-@keyframes driftB {
-  0%   { transform: translate(0, 0) scale(1.05); }
-  50%  { transform: translate(-10vmax, 6vmax) scale(0.9); }
-  100% { transform: translate(7vmax, -9vmax) scale(1.15); }
-}
-@keyframes driftC {
-  0%   { transform: translate(0, 0) scale(0.95); }
-  50%  { transform: translate(6vmax, 9vmax) scale(1.12); }
-  100% { transform: translate(-9vmax, -5vmax) scale(1); }
 }
 
 /* Fullscreen: the paper fills everything. */
@@ -108,6 +155,39 @@ body.fs #paper {
   max-height: none !important;
   border-radius: 0;
   box-shadow: none;
+}
+
+/* Liquid-glass desk: soft pastel blobs drifting in real time */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+  opacity: 0.50;
+  pointer-events: none;
+  will-change: transform;
+  z-index: 0;
+}
+.blob.k0 { animation: driftA var(--dur, 26s) ease-in-out var(--delay, 0s) infinite alternate; }
+.blob.k1 { animation: driftB var(--dur, 30s) ease-in-out var(--delay, 0s) infinite alternate; }
+.blob.k2 { animation: driftC var(--dur, 24s) ease-in-out var(--delay, 0s) infinite alternate; }
+
+@keyframes driftA {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(6vmax, -5vmax) scale(1.12); }
+  66%  { transform: translate(-4vmax, 6vmax) scale(0.96); }
+  100% { transform: translate(9vmax, -7vmax) scale(1.18); }
+}
+@keyframes driftB {
+  0%   { transform: translate(0, 0) scale(1.05); }
+  33%  { transform: translate(-7vmax, 4vmax) scale(0.94); }
+  66%  { transform: translate(5vmax, -6vmax) scale(1.1); }
+  100% { transform: translate(-10vmax, 6vmax) scale(0.9); }
+}
+@keyframes driftC {
+  0%   { transform: translate(0, 0) scale(0.95); }
+  33%  { transform: translate(4vmax, 6vmax) scale(1.08); }
+  66%  { transform: translate(-6vmax, 3vmax) scale(1); }
+  100% { transform: translate(6vmax, 9vmax) scale(1.12); }
 }
 
 /* ------------------------------------------------------------------ paper */
@@ -148,7 +228,6 @@ body.fs #paper {
 
 #paper.texture-plain { background: var(--paper-color, #f5f0e4); }
 
-/* Slight vignette over every paper for depth (kept very subtle on black). */
 #paper::after {
   content: "";
   position: absolute;
@@ -177,7 +256,7 @@ body.fs #paper {
   bottom: max(26px, calc(env(safe-area-inset-bottom) + 18px));
   text-align: center;
   font-style: italic;
-  font-size: 15px;
+  font-size: var(--whisper-size, 15px);
   letter-spacing: 0.06em;
   color: var(--ink-color, #3a2c1a);
   opacity: 0;
@@ -190,20 +269,29 @@ body.fs #paper {
 
 .ctl {
   position: absolute;
-  top: max(14px, env(safe-area-inset-top));
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   z-index: 30;
   transition: opacity 0.45s ease;
 }
 
 #ctl-left {
-  left: max(14px, env(safe-area-inset-left));
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
 }
 
 #ctl-right {
-  right: max(14px, env(safe-area-inset-right));
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+}
+
+/* Reset button: bottom-right */
+.reset-btn {
+  position: absolute;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 30;
 }
 
 /* Apple-style frosted glass. */
@@ -220,15 +308,15 @@ body.fs #paper {
 }
 
 .icon-btn {
-  width: 44px;
-  height: 44px;
+  width: var(--btn-size, 44px);
+  height: var(--btn-size, 44px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
 }
 
-.icon-btn svg { width: 21px; height: 21px; display: block; }
+.icon-btn svg { width: 60%; height: 60%; display: block; }
 
 .btn-glass:active { transform: scale(0.92); }
 .btn-glass.active {
@@ -236,42 +324,31 @@ body.fs #paper {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 0 0 1.5px rgba(255, 255, 255, 0.55);
 }
 
-/* App icon — blue-violet gradient squircle, open book + quill (top center). */
-#app-icon {
-  position: absolute;
-  top: max(12px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  width: 46px;
-  height: 46px;
-  z-index: 25;
-  pointer-events: none;
-  filter: drop-shadow(0 4px 10px rgba(40, 30, 80, 0.28));
-  transition: opacity 0.45s ease;
-}
-#app-icon svg { width: 100%; height: 100%; display: block; }
-
-/* While writing on the page the controls deepen their frost and drop to
-   20% opacity — present, but out of the way. */
-body.writing .ctl { opacity: 0.2; }
-body.writing #app-icon { opacity: 0.2; }
+/* 15% opacity during writing (was 20%) */
+body.writing .ctl { opacity: 0.15; }
+body.writing .reset-btn { opacity: 0.15; }
 body.writing .ctl .btn-glass,
 body.writing .ctl .swatch {
   -webkit-backdrop-filter: blur(30px) saturate(2);
   backdrop-filter: blur(30px) saturate(2);
 }
 .ctl:hover { opacity: 1; }
+.reset-btn:hover { opacity: 1; }
 .ctl:hover .btn-glass, .ctl:hover .swatch {
   -webkit-backdrop-filter: blur(18px) saturate(1.7);
   backdrop-filter: blur(18px) saturate(1.7);
 }
 
+/* Landscape button only visible in fullscreen */
+.fs-only { display: none !important; }
+body.fs .fs-only { display: flex !important; }
+
 /* Theme swatches */
-#swatches { display: flex; gap: 8px; align-items: center; }
+#swatches { display: flex; gap: 6px; align-items: center; }
 
 .swatch {
-  width: 34px;
-  height: 34px;
+  width: var(--swatch-size, 34px);
+  height: var(--swatch-size, 34px);
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
@@ -335,7 +412,68 @@ body.writing .ctl .swatch {
 .glass-card em { font-style: italic; }
 .glass-card b { font-family: "Dancing Script", cursive; font-size: 1.35em; }
 
-/* Dark scheme: keep frosted panels readable on light papers. */
+/* Guide sandbox: isolate admin-provided HTML */
+#guide-content {
+  all: initial;
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  color: inherit;
+  text-align: center;
+}
+#guide-content * {
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
 @media (prefers-color-scheme: light) {
   .glass-card { background: rgba(46, 38, 28, 0.55); }
+}
+
+/* ------------------------------------------------------------------ footer */
+
+#page-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  text-align: center;
+  padding: 6px 16px max(6px, env(safe-area-inset-bottom));
+  font-size: 12px;
+  color: #6f6a61;
+  opacity: 0.7;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+body.fs #page-footer { opacity: 0; pointer-events: none; }
+
+/* Footer sandbox: isolate admin HTML to prevent style leakage */
+.footer-sandbox {
+  display: inline-block;
+  all: initial;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 12px;
+  color: #6f6a61;
+  text-align: center;
+  pointer-events: auto;
+}
+.footer-sandbox * {
+  max-width: 100%;
+  word-wrap: break-word;
+}
+.footer-sandbox a {
+  color: #5b4fc4;
+  text-decoration: underline;
+}
+.footer-sandbox img {
+  max-height: 40px;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+@media (prefers-color-scheme: dark) {
+  #page-footer { color: #bbb4a4; }
+  .footer-sandbox { color: #bbb4a4; }
+  .footer-sandbox a { color: #9b8fe4; }
 }

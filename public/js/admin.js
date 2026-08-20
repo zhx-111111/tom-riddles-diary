@@ -1,6 +1,4 @@
-// Admin panel logic (Chinese UI). Password login → 12h token; config edits
-// are saved to KV via the worker. Model endpoints & keys live in CF console
-// environment variables and are shown read-only here.
+// Admin panel logic (Chinese UI).
 
 (function () {
   "use strict";
@@ -11,9 +9,13 @@
   let state = null;
   let customThemes = [];
 
-  const NUM_FIELDS = ["writeSpeed", "strokeWidth", "historyTurns", "catalogSize", "idleMs", "maxTokens", "maxReplyChars", "maxMemories"];
-
-  // ------------------------------------------------------------- api calls
+  const NUM_FIELDS = [
+    "writeSpeed", "strokeWidth", "historyTurns", "catalogSize", "idleMs",
+    "maxTokens", "maxReplyChars", "maxMemories", "avgReplyWords",
+    "themeBtnSize", "landscapeBtnSize", "fullscreenBtnSize", "eraserBtnSize",
+    "resetBtnSize", "whisperFontSize",
+  ];
+  const STR_FIELDS = ["musicUrl", "footerHtml", "guideHtml"];
 
   async function api(path, opts = {}) {
     const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
@@ -33,8 +35,6 @@
     $("admin-view").classList.remove("hidden");
   }
 
-  // --------------------------------------------------------------- render
-
   function statusLi(k, v, cls) {
     const li = document.createElement("li");
     const kEl = document.createElement("span");
@@ -52,7 +52,6 @@
     const cfg = state.config;
     const env = state.env;
 
-    // status
     const sl = $("status-list");
     sl.innerHTML = "";
     sl.appendChild(statusLi("KV 存储（DIARY_KV）", env.kvBound ? "已绑定" : "未绑定 — 请在 CF 控制台绑定 KV，否则记忆与配置无法持久保存", env.kvBound ? "ok" : "warn"));
@@ -60,13 +59,12 @@
     sl.appendChild(statusLi("备用视觉模型 Key", env.zhipuKeys ? `已配置（${env.zhipuKeys} 个）` : "未配置（降级与誊写功能不可用）", env.zhipuKeys ? "ok" : "warn"));
     sl.appendChild(statusLi("管理密码", env.passwordIsDefault ? "仍是默认密码，建议修改环境变量 ADMIN_PASSWORD" : "已修改", env.passwordIsDefault ? "warn" : "ok"));
 
-    // model info
     const ml = $("model-list");
     ml.innerHTML = "";
     ml.appendChild(statusLi("主模型", `${env.agnesModel} @ ${env.agnesBase}`));
     ml.appendChild(statusLi("备用模型（视觉）", `${env.zhipuModel} @ ${env.zhipuBase}`));
 
-    // fields
+    // Numeric fields
     for (const f of NUM_FIELDS) {
       const input = $("f-" + f);
       const out = $("o-" + f);
@@ -74,6 +72,13 @@
       input.value = String(cfg[f]);
       out.textContent = String(cfg[f]);
       input.oninput = () => { out.textContent = input.value; };
+    }
+
+    // String fields
+    for (const f of STR_FIELDS) {
+      const input = $("f-" + f);
+      if (!input) continue;
+      input.value = cfg[f] || "";
     }
 
     customThemes = (cfg.themes || []).map((t) => ({ name: t.name, paper: t.paper, ink: t.ink }));
@@ -111,12 +116,15 @@
       const input = $("f-" + f);
       if (input) patch[f] = Number(input.value);
     }
+    for (const f of STR_FIELDS) {
+      const input = $("f-" + f);
+      if (input) patch[f] = input.value;
+    }
     patch.themes = customThemes;
     return patch;
   }
 
-  // --------------------------------------------------------------- events
-
+  // Events
   $("login-btn").addEventListener("click", async () => {
     const pw = $("login-password").value;
     $("login-error").textContent = "";
@@ -189,7 +197,7 @@
       } else {
         alert(data.error || "操作失败");
       }
-    } catch { /* unauthorized → already back at login */ }
+    } catch { /* unauthorized */ }
   });
 
   $("forget-btn").addEventListener("click", async () => {
@@ -201,8 +209,6 @@
       else alert(data.error || "操作失败");
     } catch { /* ignore */ }
   });
-
-  // ----------------------------------------------------------------- boot
 
   async function load() {
     const resp = await api("/api/admin/state");

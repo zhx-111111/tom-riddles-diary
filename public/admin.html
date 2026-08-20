@@ -40,7 +40,7 @@
       <label>
         <span>回复书写速度（毫秒 / 字符，越小越快）</span>
         <div class="row">
-          <input id="f-writeSpeed" type="range" min="10" max="200" step="1">
+          <input id="f-writeSpeed" type="range" min="10" max="500" step="1">
           <output id="o-writeSpeed"></output>
         </div>
       </label>
@@ -72,6 +72,13 @@
           <output id="o-maxReplyChars"></output>
         </div>
       </label>
+      <label>
+        <span>平均回答词数（70% 情况下模型回复的单词数，注入提示词）</span>
+        <div class="row">
+          <input id="f-avgReplyWords" type="range" min="10" max="200" step="5">
+          <output id="o-avgReplyWords"></output>
+        </div>
+      </label>
     </section>
 
     <section class="card">
@@ -101,6 +108,56 @@
     </section>
 
     <section class="card">
+      <h2>按钮大小</h2>
+      <label>
+        <span>主题选择按钮大小（px）</span>
+        <div class="row">
+          <input id="f-themeBtnSize" type="range" min="20" max="60" step="1">
+          <output id="o-themeBtnSize"></output>
+        </div>
+      </label>
+      <label>
+        <span>横屏按钮大小（px）</span>
+        <div class="row">
+          <input id="f-landscapeBtnSize" type="range" min="28" max="70" step="1">
+          <output id="o-landscapeBtnSize"></output>
+        </div>
+      </label>
+      <label>
+        <span>全屏按钮大小（px）</span>
+        <div class="row">
+          <input id="f-fullscreenBtnSize" type="range" min="28" max="70" step="1">
+          <output id="o-fullscreenBtnSize"></output>
+        </div>
+      </label>
+      <label>
+        <span>橡皮擦按钮大小（px）</span>
+        <div class="row">
+          <input id="f-eraserBtnSize" type="range" min="28" max="70" step="1">
+          <output id="o-eraserBtnSize"></output>
+        </div>
+      </label>
+      <label>
+        <span>重置按钮大小（px）</span>
+        <div class="row">
+          <input id="f-resetBtnSize" type="range" min="28" max="70" step="1">
+          <output id="o-resetBtnSize"></output>
+        </div>
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>显示</h2>
+      <label>
+        <span>"The diary is thinking…" 文本大小（px）</span>
+        <div class="row">
+          <input id="f-whisperFontSize" type="range" min="10" max="28" step="1">
+          <output id="o-whisperFontSize"></output>
+        </div>
+      </label>
+    </section>
+
+    <section class="card">
       <h2>信纸主题</h2>
       <p class="hint">内置主题：Midnight Ink（纯黑信纸 + 米白笔迹）、Marauder's Map（活点地图）、Aged Letter（复古做旧黄 + 黑偏褐笔迹）。可在下方自定义更多信纸。</p>
       <div id="custom-themes"></div>
@@ -110,6 +167,26 @@
         <label class="color-field">笔迹 <input id="nt-ink" type="color" value="#241812"></label>
         <button id="add-theme-btn" class="ghost-btn">＋ 添加主题</button>
       </div>
+    </section>
+
+    <section class="card">
+      <h2>背景音乐</h2>
+      <label>
+        <span>音乐 URL（哈利波特主题曲 · 海德薇变奏曲的外部音频链接，留空则不显示播放按钮）</span>
+        <input id="f-musicUrl" type="url" placeholder="https://example.com/hedwigs-theme.mp3" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(0,0,0,0.12);background:rgba(255,255,255,0.75);color:#1d1d1f;font-size:14px;outline:none;">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>页脚内容（支持 HTML）</h2>
+      <p class="hint">支持 HTML 标签（a、img、b、i、em 等），样式已做好隔离不会影响页面其他元素。可上传文件后将 URL 粘贴到 HTML 中。</p>
+      <textarea id="f-footerHtml" rows="4" placeholder="<p>© 2024 Tom Riddle's Diary</p>" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(0,0,0,0.12);background:rgba(255,255,255,0.75);color:#1d1d1f;font-size:13px;font-family:monospace;outline:none;resize:vertical;"></textarea>
+    </section>
+
+    <section class="card">
+      <h2>"?" 指南页面（支持 HTML）</h2>
+      <p class="hint">用户书写"?"后弹出的指南页面内容。留空使用默认内容。支持 HTML。</p>
+      <textarea id="f-guideHtml" rows="6" placeholder="<h2>The Diary</h2><p>Write, then rest your quill...</p>" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(0,0,0,0.12);background:rgba(255,255,255,0.75);color:#1d1d1f;font-size:13px;font-family:monospace;outline:none;resize:vertical;"></textarea>
     </section>
 
     <section class="card">

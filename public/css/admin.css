@@ -1,10 +1,9 @@
-/* Admin panel styles — Apple-style frosted cards over a flowing pastel
-   liquid-glass background, Chinese UI. */
+/* Admin panel styles — Apple-style frosted cards, dark mode support. */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --bg: #eef1fb;
   --card: rgba(255, 255, 255, 0.58);
   --card-border: rgba(255, 255, 255, 0.75);
@@ -12,6 +11,18 @@
   --dim: #6f6a61;
   --accent: #5b4fc4;
   --danger: #c94f3d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a2e;
+    --card: rgba(40, 38, 55, 0.72);
+    --card-border: rgba(80, 75, 100, 0.4);
+    --text: #e0dcd4;
+    --dim: #9a958c;
+    --accent: #8b7fe4;
+    --danger: #e06050;
+  }
 }
 
 html, body { min-height: 100%; }
@@ -23,6 +34,14 @@ body {
   font-size: 15px;
   line-height: 1.6;
   overflow-x: hidden;
+  transition: filter 0.6s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: linear-gradient(125deg, #1a1a2e 0%, #1e1e3a 30%, #1a2a28 55%, #2a2218 80%, #2a1a22 100%);
+    filter: none;
+  }
 }
 
 .hidden { display: none !important; }

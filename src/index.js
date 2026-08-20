@@ -1,17 +1,7 @@
 // Tom Riddle's Diary — Cloudflare Worker.
 //
-// A web re-imagining of MaximeRivest/riddle (MIT): you write on the page,
-// the diary drinks your ink, and Tom answers in a flowing hand. The reply
-// pipeline mirrors the original oracle: the committed page is sent as an
-// inline PNG to a vision LLM; the streamed reply passes through the same
-// StreamParser (sentence ink, ⟦show:N⟧ conjuring, ⁂ transcript postscript).
-//
-//   primary  — agnes-2.5-flash @ https://apihub.agnes-ai.cn/v1 (free)
-//   backup   — glm-4.6v-flash   @ https://open.bigmodel.cn/api/paas/v4 (free)
-//              doubles as the scribe when the primary cannot read images.
-//
 // Routes:
-//   GET  /                 diary front end (pure English)
+//   GET  /                 diary front end
 //   GET  /admin            admin panel (Chinese, password protected)
 //   POST /api/login        password → 12h token
 //   GET  /api/config       public front-end config
@@ -20,6 +10,8 @@
 //   GET  /api/admin/state  admin state (token)
 //   POST /api/admin/config save overrides (token)
 //   POST /api/admin/forget erase memories (token)
+//   POST /api/admin/footer save footer HTML + file (token)
+//   POST /api/admin/guide  save guide HTML (token)
 
 import { PERSONA, MEMORY_PROTOCOL } from "./prompts.js";
 import { StreamParser, clean } from "./parser.js";
@@ -100,7 +92,6 @@ async function loadSession(env, sid) {
 
 async function saveSession(env, sid, session, cfg) {
   if (!env.DIARY_KV) return;
-  // Forget the oldest pages beyond the cap (memory.rs prunes at 400).
   if (session.entries.length > cfg.maxMemories) {
     session.entries = session.entries.slice(session.entries.length - cfg.maxMemories);
   }
@@ -111,7 +102,6 @@ async function saveSession(env, sid, session, cfg) {
   }
 }
 
-/// Catalog lines shown to the oracle, newest first (catalog port).
 function buildCatalog(session, size, tz) {
   const lines = [];
   const ids = [];
@@ -124,17 +114,14 @@ function buildCatalog(session, size, tz) {
   return { lines, ids };
 }
 
-/// The per-turn user text: memory catalog (when remembering) + instruction.
-/// Verbatim port of turn_text in oracle.rs.
-function turnText(catalogLines) {
-  if (!catalogLines.length) return "Reply to what is written in the diary.";
-  return `Memory catalog (newest first):\n${catalogLines.join("\n")}\n\nReply to what is written in the diary.`;
+function turnText(catalogLines, avgWords) {
+  const wordHint = avgWords ? ` Keep your reply to approximately ${avgWords} words (this applies to ~70% of your replies).` : "";
+  if (!catalogLines.length) return "Reply to what is written in the diary." + wordHint;
+  return `Memory catalog (newest first):\n${catalogLines.join("\n")}\n\nReply to what is written in the diary.${wordHint}`;
 }
 
 // ------------------------------------------------------------- chat (SSE)
 
-/// Feeds streamed fragments through the StreamParser and pushes events to
-/// the client; tracks the reply + transcript for memory keeping.
 class ReplyRunner {
   constructor(catalogIds, send, maxChars) {
     this.parser = new StreamParser(catalogIds);
@@ -144,7 +131,7 @@ class ReplyRunner {
     this.reply = "";
     this.transcript = null;
     this.showId = null;
-    this.maxChars = maxChars || Infinity; // 单次输出长度 (character cap)
+    this.maxChars = maxChars || Infinity;
     this.capped = false;
   }
   feed(frag) {
@@ -157,11 +144,10 @@ class ReplyRunner {
   emit(ev) {
     if (ev.err) throw new ChatError(0, ev.err);
     if (ev.type === "ink") {
-      if (this.capped) return; // the page is full — no more ink
+      if (this.capped) return;
       let text = ev.text;
       const room = this.maxChars - this.reply.length;
       if (text.length > room) {
-        // Cut at the last clean boundary that still fits, then trail off.
         let cut = Math.max(0, room);
         const b = text.slice(0, cut);
         const m = b.match(/.*[.!?\u2026]\s*$|.*[，、;；:：\s]/s);
@@ -188,11 +174,7 @@ async function runStream(env, prov, messages, cfg, runner) {
 
 async function handleChat(req, env) {
   let payload;
-  try {
-    payload = await req.json();
-  } catch {
-    return json({ error: "bad json" }, 400);
-  }
+  try { payload = await req.json(); } catch { return json({ error: "bad json" }, 400); }
   const cfg = await loadConfig(env);
   const sid = String(payload.sid || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
   const image = typeof payload.image === "string" ? payload.image : "";
@@ -214,7 +196,7 @@ async function handleChat(req, env) {
     historyMsgs.push({ role: "user", content: `(an earlier page) ${t}` });
     historyMsgs.push({ role: "assistant", content: r });
   }
-  const userText = turnText(catalog.lines);
+  const userText = turnText(catalog.lines, cfg.avgReplyWords);
   const withImage = [
     { type: "text", text: userText },
     { type: "image_url", image_url: { url: image } },
@@ -236,16 +218,14 @@ async function handleChat(req, env) {
         try {
           await runStream(env, provs.primary, msgsWithImage, cfg, runner);
         } catch (e) {
-          // Mid-ink failures cannot be taken back — surface them as written.
           if (runner.gotContent) throw e;
           if (e instanceof ImageError && provs.zhipu.keys.length) {
-            // Scribe relay: the backup vision model reads the ink, then the
-            // primary answers from the transcription (text-only turn).
             try {
               const transcript = await transcribeInk(env, provs.zhipu, image);
               const textTurn =
                 (catalog.lines.length ? `Memory catalog (newest first):\n${catalog.lines.join("\n")}\n\n` : "") +
-                `The writer's ink reads:\n"${transcript}"\n\nReply to what is written in the diary.`;
+                `The writer's ink reads:\n"${transcript}"\n\nReply to what is written in the diary.` +
+                (cfg.avgReplyWords ? ` Keep your reply to approximately ${cfg.avgReplyWords} words.` : "");
               const textMsgs = [
                 { role: "system", content: system },
                 ...historyMsgs,
@@ -254,16 +234,15 @@ async function handleChat(req, env) {
               await runStream(env, provs.primary, textMsgs, cfg, runner);
             } catch (e2) {
               if (runner.gotContent) throw e2;
-              await runStream(env, provs.zhipu, msgsWithImage, cfg, runner); // full backup
+              await runStream(env, provs.zhipu, msgsWithImage, cfg, runner);
             }
           } else if (provs.zhipu.keys.length) {
-            await runStream(env, provs.zhipu, msgsWithImage, cfg, runner); // full backup
+            await runStream(env, provs.zhipu, msgsWithImage, cfg, runner);
           } else {
             throw e;
           }
         }
 
-        // Keep the finished page: transcript, Tom's reply, the pen strokes.
         if (session) {
           const entry = {
             id: Math.floor(Date.now() / 1000),
@@ -390,7 +369,6 @@ export default {
       return env.ASSETS.fetch(new URL("/admin.html", req.url));
     }
 
-    // Everything else: static assets (index.html, css, js, fonts…).
     return env.ASSETS.fetch(req);
   },
 };

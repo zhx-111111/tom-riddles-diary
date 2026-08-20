@@ -1,13 +1,8 @@
-// Incremental stream parser — a faithful JavaScript port of `StreamParser`
-// from the original riddle project (src/oracle.rs, MIT license).
-//
-// It routes the ⟦show:N⟧ conjuring directive, chunks prose into
-// sentence-sized events, and splits off the ⁂-transcription postscript.
-// Fed the RUNNING accumulated reply text, it emits each event exactly once.
-// The writer never sees ⟦…⟧ glyphs or the ⁂ postscript — same as the
-// original diary.
+// Incremental stream parser — routes ⟦show:N⟧ conjuring directives,
+// chunks prose into small events for fast streaming feel, and splits off
+// the ⁂-transcription postscript.
 
-const SENTINEL = "\u2042"; // ⁂
+const SENTINEL = "\u2062"; // invisible separator
 const SHOW_OPEN = "\u27e6"; // ⟦
 const SHOW_CLOSE = "\u27e7"; // ⟧
 
@@ -19,9 +14,7 @@ export function clean(s) {
   return t;
 }
 
-/// Remove any ⟦…⟧ directive spans from inked prose, so a misbehaving model
-/// that emits a directive mid/after prose never renders ⟦…⟧ as literal
-/// glyphs in Tom's hand.
+/// Remove any ⟦…⟧ directive spans from inked prose.
 export function stripDirectives(s) {
   if (!s.includes(SHOW_OPEN)) return s;
   let out = "";
@@ -31,31 +24,38 @@ export function stripDirectives(s) {
     if (open < 0) break;
     out += rest.slice(0, open);
     const close = rest.indexOf(SHOW_CLOSE, open);
-    if (close < 0) {
-      rest = ""; // unterminated: drop the tail
-      break;
-    }
+    if (close < 0) { rest = ""; break; }
     rest = rest.slice(close + 1);
   }
   out += rest;
   return out.split(/\s+/).filter(Boolean).join(" ");
 }
 
-/// End of the LAST complete sentence in text[from..effective]: sentence
-/// punctuation followed by whitespace or end-of-text. Chunks shorter than a
-/// few characters are not worth an early delivery. Returns the offset just
-/// past the punctuation, or null.
-export function sentenceCut(text, effective, from) {
-  let cut = null;
+/// Cut at sentence boundary OR after ~8 words for faster streaming feel.
+export function inkCut(text, effective, from) {
+  // First try sentence boundary (preferred)
+  let sentCut = null;
   for (let i = from; i < effective; i++) {
     const c = text[i];
     if (c === "." || c === "!" || c === "?" || c === "\u2026") {
       const end = i + 1;
       const next = end < text.length ? text[end] : null;
-      if ((next === null || /\s/.test(next)) && end - from >= 4) cut = end;
+      if ((next === null || /\s/.test(next)) && end - from >= 4) sentCut = end;
     }
   }
-  return cut;
+  if (sentCut !== null) return sentCut;
+
+  // Fall back to word boundary (~6-12 chars for faster streaming)
+  const remaining = text.slice(from, effective);
+  if (remaining.length < 6) return null;
+  // Find a space after at least 5 chars
+  const spaceIdx = remaining.indexOf(" ", 5);
+  if (spaceIdx > 0 && spaceIdx < remaining.length - 1) {
+    return from + spaceIdx + 1;
+  }
+  // No good word break, if we have enough text just cut
+  if (remaining.length >= 15) return effective;
+  return null;
 }
 
 export class StreamParser {
@@ -67,8 +67,7 @@ export class StreamParser {
     this.catalogIds = catalogIds || [];
   }
 
-  /// Feed the full accumulated reply text so far. `done` marks end of
-  /// stream: flushes the tail and the transcription.
+  /// Feed the full accumulated reply text so far. `done` marks end of stream.
   advance(full, done) {
     const out = [];
 
@@ -76,18 +75,15 @@ export class StreamParser {
       const i = full.indexOf(SENTINEL);
       if (i >= 0) this.sentinel = i;
     }
-    // The reply body is everything before the ⁂ transcription postscript.
     const effective = this.sentinel === null ? full.length : this.sentinel;
 
-    // Route: is this reply an incantation (⟦show:N⟧) rather than prose?
-    // The directive is honored only when it LEADS the reply (we can't
-    // un-ink), so hold output until the lead is settled.
+    // Route: is this reply a ⟦show:N⟧ conjuring directive?
     if (!this.routeChecked) {
       const lead = full.slice(this.delivered, effective).replace(/^\s+/, "");
       if (lead.startsWith(SHOW_OPEN)) {
         const closeRel = lead.indexOf(SHOW_CLOSE);
         if (closeRel < 0) {
-          if (!done) return out; // directive still streaming in
+          if (!done) return out;
           out.push({ err: "unfinished conjuring directive" });
           return out;
         }
@@ -96,22 +92,21 @@ export class StreamParser {
         const n = m ? parseInt(m[1], 10) : NaN;
         this.routeChecked = true;
         this.emittedAny = true;
-        this.delivered = effective; // consume the whole body
+        this.delivered = effective;
         const id = Number.isInteger(n) ? this.catalogIds[n - 1] : undefined;
         if (id !== undefined) out.push({ type: "show", id });
         else out.push({ err: `the diary lost that page (${inner})` });
       } else if (lead === "") {
-        if (!done) return out; // only whitespace so far — keep waiting
+        if (!done) return out;
         this.routeChecked = true;
       } else {
-        // Real prose leads: a normal reply.
         this.routeChecked = true;
       }
     }
 
-    // Prose sentences, never crossing into the transcription postscript.
+    // Prose chunks — emit frequently for fast streaming
     if (this.delivered < effective) {
-      const cut = sentenceCut(full, effective, this.delivered);
+      const cut = inkCut(full, effective, this.delivered);
       if (cut !== null) {
         const chunk = stripDirectives(clean(full.slice(this.delivered, cut)));
         if (chunk) {

@@ -15,36 +15,47 @@
 <link rel="stylesheet" href="/css/diary.css">
 </head>
 <body>
+
+<!-- Page-level header: app icon + title (top-left, topmost layer, hidden in fullscreen) -->
+<div id="page-header">
+  <div id="page-icon">
+    <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="trdIconG" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5b7cfa"/>
+          <stop offset="1" stop-color="#a05bf0"/>
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="116" height="116" rx="27" fill="url(#trdIconG)"/>
+      <g fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M52 48 C 62 39, 74 27, 86 14"/>
+        <path d="M86 14 C 73 16, 61 26, 55 41"/>
+        <path d="M86 14 C 84 27, 74 39, 59 45"/>
+        <path d="M60 62 C 51 55, 37 53, 27 56 L 27 88 C 37 85, 51 87, 60 94 C 69 87, 83 85, 93 88 L 93 56 C 83 53, 69 55, 60 62 Z"/>
+        <path d="M60 62 L 60 94"/>
+        <path d="M35 64 C 43 62, 51 63, 56 67" stroke-width="3" opacity="0.85"/>
+        <path d="M85 64 C 77 62, 69 63, 64 67" stroke-width="3" opacity="0.85"/>
+      </g>
+    </svg>
+  </div>
+  <span id="page-title">Tom Riddle's Daily</span>
+</div>
+
+<!-- Music floating button (hidden in fullscreen) -->
+<button id="btn-music" class="float-btn" title="Play / Pause Music" aria-label="Play or Pause Music">
+  <svg class="ic-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+  <svg class="ic-pause hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+</button>
+
 <div id="stage">
   <div id="desk">
     <div id="paper">
       <canvas id="ink-canvas"></canvas>
       <canvas id="reply-canvas"></canvas>
 
-      <div id="app-icon" aria-hidden="true">
-        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="trdIconG" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#5b7cfa"/>
-              <stop offset="1" stop-color="#a05bf0"/>
-            </linearGradient>
-          </defs>
-          <rect x="2" y="2" width="116" height="116" rx="27" fill="url(#trdIconG)"/>
-          <g fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M52 48 C 62 39, 74 27, 86 14"/>
-            <path d="M86 14 C 73 16, 61 26, 55 41"/>
-            <path d="M86 14 C 84 27, 74 39, 59 45"/>
-            <path d="M60 62 C 51 55, 37 53, 27 56 L 27 88 C 37 85, 51 87, 60 94 C 69 87, 83 85, 93 88 L 93 56 C 83 53, 69 55, 60 62 Z"/>
-            <path d="M60 62 L 60 94"/>
-            <path d="M35 64 C 43 62, 51 63, 56 67" stroke-width="3" opacity="0.85"/>
-            <path d="M85 64 C 77 62, 69 63, 64 67" stroke-width="3" opacity="0.85"/>
-          </g>
-        </svg>
-      </div>
-
       <div id="whisper" aria-live="polite"></div>
 
-      <!-- theme + eraser: top-left -->
+      <!-- theme + eraser: top-left of paper -->
       <div id="ctl-left" class="ctl">
         <div id="swatches"></div>
         <button id="btn-eraser" class="btn-glass icon-btn" title="Eraser" aria-label="Eraser">
@@ -55,9 +66,9 @@
         </button>
       </div>
 
-      <!-- landscape + fullscreen: top-right -->
+      <!-- fullscreen: top-right of paper (landscape only in fullscreen) -->
       <div id="ctl-right" class="ctl">
-        <button id="btn-landscape" class="btn-glass icon-btn" title="Landscape" aria-label="Landscape">
+        <button id="btn-landscape" class="btn-glass icon-btn fs-only" title="Landscape" aria-label="Landscape">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="6.5" width="18" height="11" rx="2.2"/>
             <path d="M12 3.5v-1M8.5 4.2 7.8 3M15.5 4.2l.7-1.2"/>
@@ -73,18 +84,36 @@
         </button>
       </div>
 
+      <!-- Reset button: bottom-right of paper -->
+      <button id="btn-reset" class="btn-glass icon-btn reset-btn hidden" title="Reset" aria-label="Reset current turn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+      </button>
+
       <!-- the guide, summoned by drawing a large ? -->
       <div id="guide" class="glass-card hidden">
-        <h2>The Diary</h2>
-        <p>Write, then rest your quill:<br>the diary drinks your ink and Tom replies.</p>
-        <p>The diary remembers. Ask it:<br><em>&ldquo;show me what I wrote about&hellip;&rdquo;</em><br>and the page will rise again.</p>
-        <p>Touch with two fingers to erase,<br>or use the eraser in the corner.</p>
-        <p>A large <b>?</b> summons this guide.</p>
+        <div id="guide-content">
+          <h2>The Diary</h2>
+          <p>Write, then rest your quill:<br>the diary drinks your ink and Tom replies.</p>
+          <p>The diary remembers. Ask it:<br><em>&ldquo;show me what I wrote about&hellip;&rdquo;</em><br>and the page will rise again.</p>
+          <p>Touch with two fingers to erase,<br>or use the eraser in the corner.</p>
+          <p>A large <b>?</b> summons this guide.</p>
+        </div>
         <p class="dim">Touch the page to close.</p>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Footer area (below the paper, editable from admin) -->
+<div id="page-footer">
+  <div id="footer-content" class="footer-sandbox"></div>
+</div>
+
+<audio id="bg-music" loop preload="none"></audio>
+
 <script type="module" src="/js/diary.js"></script>
 </body>
 </html>
