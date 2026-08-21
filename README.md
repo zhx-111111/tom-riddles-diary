@@ -6,6 +6,8 @@
 
 本项目是 [MaximeRivest/riddle](https://github.com/MaximeRivest/riddle)（reMarkable
 Paper Pro 墨水屏上的"汤姆·里德尔日记"，MIT 协议）的 **Cloudflare Workers 网页版**：
+试玩地址：https://riddle.zh666.de5.net/
+
 保留了原项目的核心玩法与回答处理逻辑（persona 提示词、记忆协议、逐句流式解析、
 ⁂ 誊写后记、⟦show:N⟧ 召唤指令、"喝掉墨迹"的溶解动画、写大问号呼出指南等全部
 按原实现移植），把鹅毛笔换成了手指 / 触控笔 / 鼠标，把墨水屏换成了多种主题信纸。
