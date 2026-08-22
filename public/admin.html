@@ -8,7 +8,6 @@
 </head>
 <body>
 
-<!-- 登录 -->
 <div id="login-view" class="center-wrap hidden">
   <div class="card login-card">
     <h1>Tom Riddle's Diary</h1>
@@ -20,13 +19,10 @@
   </div>
 </div>
 
-<!-- 管理面板 -->
 <div id="admin-view" class="hidden">
   <header>
     <h1>日记管理后台</h1>
-    <div>
-      <button id="logout-btn" class="ghost-btn">退出登录</button>
-    </div>
+    <div><button id="logout-btn" class="ghost-btn">退出登录</button></div>
   </header>
 
   <main>
@@ -38,161 +34,117 @@
     <section class="card">
       <h2>书写参数</h2>
       <label>
-        <span>回复书写速度（毫秒 / 字符，越小越快）</span>
-        <div class="row">
-          <input id="f-writeSpeed" type="range" min="10" max="500" step="1">
-          <output id="o-writeSpeed"></output>
-        </div>
+        <span>回复书写速度（毫秒/字符，越小越快）</span>
+        <div class="row"><input id="f-writeSpeed" type="range" min="10" max="500" step="1"><output id="o-writeSpeed"></output></div>
       </label>
       <label>
-        <span>笔迹粗细（0.5 – 2.0）</span>
-        <div class="row">
-          <input id="f-strokeWidth" type="range" min="0.5" max="2" step="0.05">
-          <output id="o-strokeWidth"></output>
-        </div>
+        <span>笔迹粗细（0.2 – 3.0）</span>
+        <div class="row"><input id="f-strokeWidth" type="range" min="0.2" max="3" step="0.05"><output id="o-strokeWidth"></output></div>
       </label>
       <label>
-        <span>停笔提交等待（毫秒：停笔多久后日记"喝掉"墨迹）</span>
-        <div class="row">
-          <input id="f-idleMs" type="range" min="800" max="8000" step="100">
-          <output id="o-idleMs"></output>
-        </div>
+        <span>压感灵敏度（越高对压力变化越敏感，0.5 – 3.0）</span>
+        <div class="row"><input id="f-pressureSensitivity" type="range" min="0.5" max="3" step="0.1"><output id="o-pressureSensitivity"></output></div>
       </label>
       <label>
-        <span>回复最大长度（tokens，防失控护栏）</span>
-        <div class="row">
-          <input id="f-maxTokens" type="range" min="256" max="8192" step="128">
-          <output id="o-maxTokens"></output>
-        </div>
+        <span>停笔提交等待（毫秒）</span>
+        <div class="row"><input id="f-idleMs" type="range" min="800" max="8000" step="100"><output id="o-idleMs"></output></div>
       </label>
       <label>
-        <span>单次输出长度（字符：Tom 单页最多写多少字，超出以省略号收尾）</span>
-        <div class="row">
-          <input id="f-maxReplyChars" type="range" min="100" max="3000" step="50">
-          <output id="o-maxReplyChars"></output>
-        </div>
+        <span>回复最大长度（tokens）</span>
+        <div class="row"><input id="f-maxTokens" type="range" min="256" max="8192" step="128"><output id="o-maxTokens"></output></div>
       </label>
       <label>
-        <span>平均回答词数（70% 情况下模型回复的单词数，注入提示词）</span>
-        <div class="row">
-          <input id="f-avgReplyWords" type="range" min="10" max="200" step="5">
-          <output id="o-avgReplyWords"></output>
-        </div>
+        <span>单次输出长度（字符）</span>
+        <div class="row"><input id="f-maxReplyChars" type="range" min="100" max="3000" step="50"><output id="o-maxReplyChars"></output></div>
+      </label>
+      <label>
+        <span>平均回答词数（70% 回复的单词数，注入提示词）</span>
+        <div class="row"><input id="f-avgReplyWords" type="range" min="10" max="200" step="5"><output id="o-avgReplyWords"></output></div>
+      </label>
+      <label>
+        <span>回复自动消失时间（秒，0 = 不自动消失）</span>
+        <div class="row"><input id="f-replyDismissMs" type="range" min="0" max="120" step="1"><output id="o-replyDismissMs"></output></div>
       </label>
     </section>
 
     <section class="card">
       <h2>记忆</h2>
-      <label>
-        <span>保留历史对话轮数（随每次请求带给模型的近期页数）</span>
-        <div class="row">
-          <input id="f-historyTurns" type="range" min="0" max="20" step="1">
-          <output id="o-historyTurns"></output>
-        </div>
-      </label>
-      <label>
-        <span>记忆目录条数（供"show me…"召唤过往页面的目录大小）</span>
-        <div class="row">
-          <input id="f-catalogSize" type="range" min="0" max="30" step="1">
-          <output id="o-catalogSize"></output>
-        </div>
-      </label>
-      <label>
-        <span>最多记住的页数（超出则遗忘最旧的）</span>
-        <div class="row">
-          <input id="f-maxMemories" type="range" min="10" max="400" step="10">
-          <output id="o-maxMemories"></output>
-        </div>
-      </label>
+      <label><span>保留历史对话轮数</span><div class="row"><input id="f-historyTurns" type="range" min="0" max="20" step="1"><output id="o-historyTurns"></output></div></label>
+      <label><span>记忆目录条数</span><div class="row"><input id="f-catalogSize" type="range" min="0" max="30" step="1"><output id="o-catalogSize"></output></div></label>
+      <label><span>最多记住的页数</span><div class="row"><input id="f-maxMemories" type="range" min="10" max="400" step="10"><output id="o-maxMemories"></output></div></label>
       <button id="forget-btn" class="danger-btn">清空所有记忆</button>
     </section>
 
     <section class="card">
       <h2>按钮大小</h2>
-      <label>
-        <span>主题选择按钮大小（px）</span>
-        <div class="row">
-          <input id="f-themeBtnSize" type="range" min="20" max="60" step="1">
-          <output id="o-themeBtnSize"></output>
-        </div>
-      </label>
-      <label>
-        <span>横屏按钮大小（px）</span>
-        <div class="row">
-          <input id="f-landscapeBtnSize" type="range" min="28" max="70" step="1">
-          <output id="o-landscapeBtnSize"></output>
-        </div>
-      </label>
-      <label>
-        <span>全屏按钮大小（px）</span>
-        <div class="row">
-          <input id="f-fullscreenBtnSize" type="range" min="28" max="70" step="1">
-          <output id="o-fullscreenBtnSize"></output>
-        </div>
-      </label>
-      <label>
-        <span>橡皮擦按钮大小（px）</span>
-        <div class="row">
-          <input id="f-eraserBtnSize" type="range" min="28" max="70" step="1">
-          <output id="o-eraserBtnSize"></output>
-        </div>
-      </label>
-      <label>
-        <span>重置按钮大小（px）</span>
-        <div class="row">
-          <input id="f-resetBtnSize" type="range" min="28" max="70" step="1">
-          <output id="o-resetBtnSize"></output>
-        </div>
-      </label>
+      <label><span>主题按钮大小（px）</span><div class="row"><input id="f-themeBtnSize" type="range" min="20" max="60" step="1"><output id="o-themeBtnSize"></output></div></label>
+      <label><span>横屏按钮大小（px）</span><div class="row"><input id="f-landscapeBtnSize" type="range" min="28" max="70" step="1"><output id="o-landscapeBtnSize"></output></div></label>
+      <label><span>全屏按钮大小（px）</span><div class="row"><input id="f-fullscreenBtnSize" type="range" min="28" max="70" step="1"><output id="o-fullscreenBtnSize"></output></div></label>
+      <label><span>橡皮擦按钮大小（px）</span><div class="row"><input id="f-eraserBtnSize" type="range" min="28" max="70" step="1"><output id="o-eraserBtnSize"></output></div></label>
+      <label><span>重置/透明度按钮大小（px）</span><div class="row"><input id="f-resetBtnSize" type="range" min="28" max="70" step="1"><output id="o-resetBtnSize"></output></div></label>
     </section>
 
     <section class="card">
       <h2>显示</h2>
-      <label>
-        <span>"The diary is thinking…" 文本大小（px）</span>
-        <div class="row">
-          <input id="f-whisperFontSize" type="range" min="10" max="28" step="1">
-          <output id="o-whisperFontSize"></output>
-        </div>
+      <label><span>"The diary is thinking…" 文本大小（px）</span><div class="row"><input id="f-whisperFontSize" type="range" min="10" max="28" step="1"><output id="o-whisperFontSize"></output></div></label>
+    </section>
+
+    <section class="card">
+      <h2>功能开关</h2>
+      <label class="toggle-label">
+        <input type="checkbox" id="f-easterEggEnabled">
+        <span>启用彩蛋（连点应用图标 6 次跳转管理页）</span>
       </label>
     </section>
 
     <section class="card">
       <h2>信纸主题</h2>
-      <p class="hint">内置主题：Midnight Ink（纯黑信纸 + 米白笔迹）、Marauder's Map（活点地图）、Aged Letter（复古做旧黄 + 黑偏褐笔迹）。可在下方自定义更多信纸。</p>
+      <p class="hint">内置：Midnight Ink、Marauder's Map、Aged Letter。可自定义更多。</p>
       <div id="custom-themes"></div>
       <div class="add-theme">
         <input id="nt-name" type="text" placeholder="主题名称" maxlength="24">
         <label class="color-field">信纸 <input id="nt-paper" type="color" value="#f5f0e4"></label>
         <label class="color-field">笔迹 <input id="nt-ink" type="color" value="#241812"></label>
-        <button id="add-theme-btn" class="ghost-btn">＋ 添加主题</button>
+        <button id="add-theme-btn" class="ghost-btn">＋ 添加</button>
       </div>
     </section>
 
     <section class="card">
       <h2>背景音乐</h2>
       <label>
-        <span>音乐 URL（哈利波特主题曲 · 海德薇变奏曲的外部音频链接，留空则不显示播放按钮）</span>
-        <input id="f-musicUrl" type="url" placeholder="https://example.com/hedwigs-theme.mp3" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(0,0,0,0.12);background:rgba(255,255,255,0.75);color:#1d1d1f;font-size:14px;outline:none;">
+        <span>上传音乐文件（MP3/OGG/WAV，将存储到 KV）</span>
+        <input type="file" id="music-file-input" accept="audio/*" style="margin:6px 0;">
+        <span id="music-upload-status" class="hint"></span>
       </label>
+      <label>
+        <span>或填写外部音频 URL</span>
+        <input id="f-musicUrl" type="url" placeholder="https://example.com/hedwigs-theme.mp3">
+      </label>
+      <p class="hint">上传文件优先。留空则不显示播放按钮。</p>
+    </section>
+
+    <section class="card">
+      <h2>微信验证文件</h2>
+      <p class="hint">用于微信公众域名验证。填写文件名（如 MP_verify_xxxxxx.txt）和内容，保存后该文件将在站点根路径可直接访问。</p>
+      <label><span>文件名</span><input id="f-wechatVerifyName" type="text" placeholder="MP_verify_xxxxxx.txt"></label>
+      <label><span>文件内容</span><textarea id="f-wechatVerifyContent" rows="3" placeholder="验证内容"></textarea></label>
     </section>
 
     <section class="card">
       <h2>页脚内容（支持 HTML）</h2>
-      <p class="hint">支持 HTML 标签（a、img、b、i、em 等），样式已做好隔离不会影响页面其他元素。可上传文件后将 URL 粘贴到 HTML 中。</p>
-      <textarea id="f-footerHtml" rows="4" placeholder="<p>© 2024 Tom Riddle's Diary</p>" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(0,0,0,0.12);background:rgba(255,255,255,0.75);color:#1d1d1f;font-size:13px;font-family:monospace;outline:none;resize:vertical;"></textarea>
+      <textarea id="f-footerHtml" rows="4" placeholder="<p>© 2024 Tom Riddle's Diary</p>"></textarea>
     </section>
 
     <section class="card">
       <h2>"?" 指南页面（支持 HTML）</h2>
-      <p class="hint">用户书写"?"后弹出的指南页面内容。留空使用默认内容。支持 HTML。</p>
-      <textarea id="f-guideHtml" rows="6" placeholder="<h2>The Diary</h2><p>Write, then rest your quill...</p>" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(0,0,0,0.12);background:rgba(255,255,255,0.75);color:#1d1d1f;font-size:13px;font-family:monospace;outline:none;resize:vertical;"></textarea>
+      <p class="hint">留空使用默认内容。</p>
+      <textarea id="f-guideHtml" rows="6" placeholder="<h2>The Diary</h2>..."></textarea>
     </section>
 
     <section class="card">
-      <h2>模型（在 CF 控制台环境变量中配置）</h2>
+      <h2>模型（CF 控制台环境变量）</h2>
       <ul id="model-list" class="status-list"></ul>
-      <p class="hint">多个 Key 用英文逗号分隔，将自动轮转以规避限流（429）。主模型不可用时自动降级到备用视觉模型；主模型无法读取图片时，备用模型先誊写笔迹、再由主模型作答。</p>
+      <p class="hint">多个 Key 用逗号分隔，自动轮转。主模型不可用时降级到备用。</p>
     </section>
 
     <div class="actions">

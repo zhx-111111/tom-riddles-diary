@@ -1,9 +1,6 @@
-// Tom Riddle's Diary — front-end conductor.
+// Tom Riddle's Diary — front-end conductor v2.
 //
-// Write, then rest your quill: the diary drinks your ink and Tom replies.
-// The page is committed after a pen rest, rasterized to a PNG, and streamed
-// to the worker; Tom's reply arrives chunk by chunk and writes itself in
-// Dancing Script.
+// Canvas-based flowing background, full feature set.
 
 import { InkPad, drawStroke } from "./inkpad.js";
 import { Hand } from "./hand.js";
@@ -19,6 +16,8 @@ const guideContent = $("guide-content");
 const pageIcon = $("page-icon");
 const btnMusic = $("btn-music");
 const btnReset = $("btn-reset");
+const btnDim = $("btn-dim");
+const bgCanvas = $("bg-canvas");
 const bgMusic = $("bg-music");
 const footerContent = $("footer-content");
 
@@ -42,6 +41,8 @@ const state = {
   iconClickTimer: 0,
   eraserTimer: 0,
   musicPlaying: false,
+  dimmed: false,
+  replyDismissTimer: 0,
 };
 
 let pad, hand;
@@ -92,6 +93,120 @@ async function* sseEvents(resp) {
   }
 }
 
+// ============================================= CANVAS FLOWING BACKGROUND
+
+const BG = {
+  ctx: null,
+  w: 0, h: 0,
+  orbs: [],
+  raf: 0,
+  startTime: 0,
+};
+
+function initCanvasBackground() {
+  BG.ctx = bgCanvas.getContext("2d");
+  BG.startTime = performance.now();
+
+  // Rich, deep color palette with same-hue variations (different shades)
+  // Each group: base hue with light and dark variants
+  const orbDefs = [
+    // Blues (3 shades)
+    { h: 220, s: 65, l: 28, r: 0.38 },
+    { h: 225, s: 55, l: 40, r: 0.30 },
+    { h: 215, s: 70, l: 22, r: 0.34 },
+    // Purples (3 shades)
+    { h: 270, s: 60, l: 25, r: 0.36 },
+    { h: 280, s: 50, l: 38, r: 0.28 },
+    { h: 260, s: 65, l: 20, r: 0.32 },
+    // Teals (2 shades)
+    { h: 175, s: 55, l: 25, r: 0.30 },
+    { h: 180, s: 45, l: 35, r: 0.26 },
+    // Warm accents (2 shades)
+    { h: 340, s: 50, l: 28, r: 0.24 },
+    { h: 20, s: 55, l: 30, r: 0.22 },
+    // Gold accent
+    { h: 45, s: 60, l: 25, r: 0.20 },
+    // Deep green
+    { h: 150, s: 45, l: 22, r: 0.28 },
+  ];
+
+  const rnd = (lo, hi) => lo + Math.random() * (hi - lo);
+
+  BG.orbs = orbDefs.map((def, i) => ({
+    h: def.h + rnd(-8, 8),
+    s: def.s + rnd(-5, 5),
+    l: def.l + rnd(-3, 3),
+    r: def.r,
+    // Sine wave motion parameters
+    xFreq: rnd(0.08, 0.25),   // x oscillation frequency
+    yFreq: rnd(0.06, 0.20),   // y oscillation frequency
+    xAmp: rnd(0.15, 0.35),    // x amplitude (fraction of width)
+    yAmp: rnd(0.15, 0.30),    // y amplitude (fraction of height)
+    xPhase: rnd(0, Math.PI * 2),
+    yPhase: rnd(0, Math.PI * 2),
+    xBase: rnd(0.1, 0.9),     // base position (fraction)
+    yBase: rnd(0.1, 0.9),
+    // Lightness wave (same hue, different shades over time)
+    lFreq: rnd(0.03, 0.12),
+    lAmp: rnd(3, 8),
+    lPhase: rnd(0, Math.PI * 2),
+    // Alpha wave
+    aFreq: rnd(0.02, 0.08),
+    aBase: rnd(0.3, 0.55),
+    aAmp: rnd(0.1, 0.2),
+    aPhase: rnd(0, Math.PI * 2),
+  }));
+
+  resizeBgCanvas();
+  window.addEventListener("resize", resizeBgCanvas);
+  animateBackground();
+}
+
+function resizeBgCanvas() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  BG.w = window.innerWidth;
+  BG.h = window.innerHeight;
+  bgCanvas.width = Math.round(BG.w * dpr);
+  bgCanvas.height = Math.round(BG.h * dpr);
+  BG.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function animateBackground() {
+  const t = (performance.now() - BG.startTime) / 1000;
+  const ctx = BG.ctx;
+  const w = BG.w, h = BG.h;
+
+  // Dark base
+  ctx.fillStyle = "#14101c";
+  ctx.fillRect(0, 0, w, h);
+
+  // Draw each orb as a large radial gradient
+  ctx.globalCompositeOperation = "screen";
+
+  for (const orb of BG.orbs) {
+    const x = (orb.xBase + Math.sin(t * orb.xFreq + orb.xPhase) * orb.xAmp) * w;
+    const y = (orb.yBase + Math.cos(t * orb.yFreq + orb.yPhase) * orb.yAmp) * h;
+    const radius = orb.r * Math.max(w, h);
+
+    // Animate lightness for same-hue shade variation
+    const l = orb.l + Math.sin(t * orb.lFreq + orb.lPhase) * orb.lAmp;
+    // Animate alpha for breathing effect
+    const alpha = clamp(orb.aBase + Math.sin(t * orb.aFreq + orb.aPhase) * orb.aAmp, 0.1, 0.7);
+
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    grad.addColorStop(0, `hsla(${orb.h}, ${orb.s}%, ${l}%, ${alpha})`);
+    grad.addColorStop(0.4, `hsla(${orb.h}, ${orb.s}%, ${l * 0.7}%, ${alpha * 0.5})`);
+    grad.addColorStop(1, `hsla(${orb.h}, ${orb.s}%, ${l * 0.3}%, 0)`);
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  ctx.globalCompositeOperation = "source-over";
+
+  BG.raf = requestAnimationFrame(animateBackground);
+}
+
 // ------------------------------------------------------------------ themes
 
 function applyTheme(theme, save = true) {
@@ -136,7 +251,7 @@ function paperSize() {
   if (document.fullscreenElement || state.cssFullscreen) {
     w = sw; h = sh;
   } else {
-    const availW = sw - 28, availH = sh - 100; // extra space for header+footer
+    const availW = sw - 28, availH = sh - 100;
     w = Math.min(availW, 880);
     h = w * 1.36;
     if (h > availH) { h = availH; w = h / 1.36; }
@@ -153,7 +268,6 @@ function paperSize() {
 function syncRotation() {
   const portrait = window.innerHeight > window.innerWidth;
   const fs = !!(document.fullscreenElement || state.cssFullscreen);
-  // Landscape rotation only in fullscreen mode
   stage.classList.toggle("rotated", state.forceLandscape && portrait && fs);
   paperSize();
 }
@@ -176,31 +290,6 @@ function markWriting(on) {
   }
 }
 
-/// Liquid-glass desk background with more blobs for richer animation.
-function initLiquidBackground() {
-  const desk = $("desk");
-  const palette = [
-    "#b8d8ff", "#d4c5ff", "#b9a3e8", "#9aa7e8", "#c3e6c8",
-    "#f6e7b8", "#ffd6e4", "#f5bfca", "#bfe6e8", "#e8c5f0",
-    "#c8d8a8", "#f0d0b0",
-  ];
-  const rnd = (lo, hi) => lo + Math.random() * (hi - lo);
-  const shuffled = palette.slice().sort(() => Math.random() - 0.5);
-  for (let i = 0; i < 10; i++) {
-    const b = document.createElement("div");
-    b.className = "blob k" + (i % 3);
-    const size = rnd(22, 55);
-    b.style.width = size + "vmax";
-    b.style.height = size + "vmax";
-    b.style.left = rnd(-12, 78) + "%";
-    b.style.top = rnd(-14, 74) + "%";
-    b.style.background = shuffled[i % shuffled.length];
-    b.style.setProperty("--dur", rnd(18, 42).toFixed(1) + "s");
-    b.style.setProperty("--delay", (-rnd(0, 30)).toFixed(1) + "s");
-    desk.appendChild(b);
-  }
-}
-
 // ----------------------------------------------------------- button sizes
 
 function applyButtonSizes() {
@@ -214,7 +303,7 @@ function applyButtonSizes() {
   set("#btn-landscape", cfg.landscapeBtnSize || 44);
   set("#btn-fullscreen", cfg.fullscreenBtnSize || 44);
   set("#btn-reset", cfg.resetBtnSize || 44);
-  // Whisper font size
+  set("#btn-dim", cfg.resetBtnSize || 44);
   if (cfg.whisperFontSize) {
     whisperEl.style.setProperty("--whisper-size", cfg.whisperFontSize + "px");
   }
@@ -228,7 +317,6 @@ async function commitPage() {
   clearTimeout(state.idleTimer);
   state.busy = true;
 
-  // A lone large "?" summons the guide
   if (pad.looksLikeQuestionMark()) {
     state.busy = false;
     showGuide();
@@ -242,8 +330,6 @@ async function commitPage() {
   whisper("the diary drinks your ink\u2026");
   const ac = new AbortController();
   state.abort = ac;
-
-  // SSE timeout protection (30s)
   const timeoutId = setTimeout(() => ac.abort(), 30000);
 
   const req = fetch("/api/chat", {
@@ -256,7 +342,6 @@ async function commitPage() {
   await pad.dissolve(1050);
   pad.reset();
   whisper("the diary is thinking\u2026");
-  // Show reset button while thinking
   btnReset.classList.remove("hidden");
 
   try {
@@ -285,17 +370,26 @@ async function commitPage() {
     }
     state.replyActive = false;
     if (!hand.raf) document.body.classList.remove("writing");
-    // Hide reset button, show "Write with your pen."
     btnReset.classList.add("hidden");
     whisper("Write with your pen.");
+
+    // Auto-dismiss reply after configurable time
+    clearTimeout(state.replyDismissTimer);
+    const dismissMs = state.config?.replyDismissMs || 0;
+    if (dismissMs > 0) {
+      state.replyDismissTimer = setTimeout(() => {
+        if (state.pageHasReply && !state.busy) {
+          hand.fadeOutClear(420);
+          state.pageHasReply = false;
+          whisper("");
+        }
+      }, dismissMs);
+    }
+    // Whisper auto-hide
     setTimeout(() => { if (whisperEl.textContent === "Write with your pen.") whisper(""); }, 5000);
   } catch (e) {
     clearTimeout(timeoutId);
-    if (ac.signal.aborted) {
-      state.busy = false;
-      btnReset.classList.add("hidden");
-      return;
-    }
+    if (ac.signal.aborted) { state.busy = false; btnReset.classList.add("hidden"); return; }
     whisper("");
     state.pageHasReply = true;
     hand.write("The diary falls silent. (the oracle cannot be reached)");
@@ -309,6 +403,7 @@ function newPageIfNeeded() {
   if (state.conjuring) { dismissConjure(); return true; }
   if (state.guideOpen) { hideGuide(); return true; }
   if (state.pageHasReply) {
+    clearTimeout(state.replyDismissTimer);
     hand.fadeOutClear(420);
     state.pageHasReply = false;
   }
@@ -348,7 +443,6 @@ async function conjure(id) {
     const faded = state.theme.ink;
     const strokes = (entry.strokes || []).map((line) => line.map(([x, y, r]) => ({ x, y, w: r * 2 })));
 
-    // Use offscreen canvas cache for better replay performance
     const cacheCanvas = document.createElement("canvas");
     cacheCanvas.width = replyCanvas.width;
     cacheCanvas.height = replyCanvas.height;
@@ -357,24 +451,17 @@ async function conjure(id) {
     for (let si = 0; si < strokes.length; si++) {
       if (!state.conjuring) return;
       const pts = strokes[si];
-      // Draw completed strokes to cache
-      if (si > 0) {
-        drawStroke(cacheCtx, strokes[si - 1], faded, 0.42, 1);
-      }
-      // Animate current stroke
+      if (si > 0) drawStroke(cacheCtx, strokes[si - 1], faded, 0.42, 1);
       const steps = Math.max(1, Math.floor(pts.length / 6));
       for (let i = 1; i <= pts.length; i += steps) {
         if (!state.conjuring) return;
         rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         rctx.clearRect(0, 0, hand.w, hand.h);
-        // Blit cached completed strokes
         rctx.drawImage(cacheCanvas, 0, 0, cacheCanvas.width, cacheCanvas.height, 0, 0, hand.w, hand.h);
         hand.drawCenteredLine(entry.date, hand.h * 0.085, 0.55, 0.8);
-        // Draw partial current stroke
         drawStroke(rctx, pts.slice(0, i + 1), faded, 0.42, 1);
         await new Promise((r) => setTimeout(r, 16));
       }
-      // Finalize this stroke into cache
       drawStroke(cacheCtx, pts, faded, 0.42, 1);
     }
     if (state.conjuring && entry.reply) {
@@ -412,7 +499,6 @@ function syncFullscreenUI() {
   document.body.classList.toggle("fs", active);
   $("btn-fullscreen").querySelector(".ic-expand").classList.toggle("hidden", active);
   $("btn-fullscreen").querySelector(".ic-compress").classList.toggle("hidden", !active);
-  // In non-fullscreen, disable landscape
   if (!active && state.forceLandscape) {
     state.forceLandscape = false;
     $("btn-landscape")?.classList.remove("active");
@@ -428,19 +514,15 @@ async function toggleFullscreen() {
     try { await document.exitFullscreen?.(); } catch { /* ok */ }
   } else {
     try {
-      const p = document.documentElement.requestFullscreen?.() ||
-        document.documentElement.webkitRequestFullscreen?.();
+      const p = document.documentElement.requestFullscreen?.() || document.documentElement.webkitRequestFullscreen?.();
       if (p) await p;
       else state.cssFullscreen = true;
-    } catch {
-      state.cssFullscreen = true;
-    }
+    } catch { state.cssFullscreen = true; }
   }
   syncFullscreenUI();
 }
 
 async function toggleLandscape() {
-  // Only works in fullscreen
   if (!(document.fullscreenElement || state.cssFullscreen)) return;
   state.forceLandscape = !state.forceLandscape;
   $("btn-landscape").classList.toggle("active", state.forceLandscape);
@@ -450,7 +532,7 @@ async function toggleLandscape() {
     } else if (!state.forceLandscape && screen.orientation?.unlock) {
       screen.orientation.unlock();
     }
-  } catch { /* orientation lock unsupported */ }
+  } catch { /* ok */ }
   syncRotation();
 }
 
@@ -470,13 +552,14 @@ function toggleMusic() {
       state.musicPlaying = true;
       btnMusic.querySelector(".ic-play").classList.add("hidden");
       btnMusic.querySelector(".ic-pause").classList.remove("hidden");
-    }).catch(() => { /* autoplay blocked or no source */ });
+    }).catch(() => {});
   }
 }
 
 // --------------------------------------------------------- easter egg
 
 function handleIconClick() {
+  if (state.config?.easterEggEnabled === false) return;
   state.iconClicks++;
   clearTimeout(state.iconClickTimer);
   state.iconClickTimer = setTimeout(() => { state.iconClicks = 0; }, 3000);
@@ -489,18 +572,11 @@ function handleIconClick() {
 // ----------------------------------------------------------- footer
 
 function applyFooter(html) {
-  if (html) {
-    footerContent.innerHTML = html;
-  } else {
-    footerContent.innerHTML = "";
-  }
+  footerContent.innerHTML = html || "";
 }
 
 function applyGuide(html) {
-  if (html) {
-    guideContent.innerHTML = html;
-  }
-  // else keep default
+  if (html) guideContent.innerHTML = html;
 }
 
 // ------------------------------------------------------------------- boot
@@ -518,12 +594,11 @@ async function boot() {
   state.themes = state.config.themes || [];
 
   pad.strokeScale = state.config.strokeWidth || 1;
+  pad.pressureMul = state.config.pressureSensitivity || 1.5;
   hand.speed = state.config.writeSpeed || 55;
-  hand.weight = Math.round(400 + 300 * clamp(((state.config.strokeWidth || 1) - 0.5) / 1.5, 0, 1));
+  hand.weight = Math.round(400 + 300 * clamp(((state.config.strokeWidth || 1) - 0.2) / 2.8, 0, 1));
 
-  // Apply button sizes and whisper size
   applyButtonSizes();
-
   buildSwatches();
   const savedId = localStorage.getItem("trd.theme");
   const theme = state.themes.find((t) => t.id === savedId) || state.themes[0];
@@ -532,14 +607,16 @@ async function boot() {
   paperSize();
   syncRotation();
 
-  // Apply footer and guide from config
   applyFooter(state.config.footerHtml || "");
   applyGuide(state.config.guideHtml || "");
 
-  // Music button visibility
-  if (!state.config.musicUrl) {
-    btnMusic.classList.add("hidden");
+  // Music button
+  if (state.config.musicUrl) {
+    btnMusic.classList.remove("hidden");
   }
+
+  // Start canvas background animation
+  initCanvasBackground();
 
   try { await document.fonts.load(`${hand.weight} 40px "Dancing Script"`); } catch { /* ok */ }
 
@@ -550,17 +627,12 @@ async function boot() {
     const consumed = newPageIfNeeded();
     if (consumed) return;
     clearTimeout(state.idleTimer);
+    clearTimeout(state.replyDismissTimer);
     markWriting(true);
     pad.pointerDown(e);
   });
   inkCanvas.addEventListener("pointermove", (e) => {
     e.preventDefault();
-    // Fix: in landscape rotation, coordinates need to be transformed
-    if (stage.classList.contains("rotated")) {
-      // The canvas is inside the rotated stage, so pointer coordinates
-      // relative to the canvas are already correct (the browser handles
-      // the transform for pointer events within the rotated container)
-    }
     pad.pointerMove(e);
   });
   const endPointer = (e) => {
@@ -572,13 +644,10 @@ async function boot() {
   inkCanvas.addEventListener("pointercancel", endPointer);
   inkCanvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  pad.onChange = () => {};
-
   // ---- controls
   $("btn-eraser").addEventListener("click", (e) => {
     pad.eraseTool = !pad.eraseTool;
     e.currentTarget.classList.toggle("active", pad.eraseTool);
-    // Auto-exit eraser after 1.5s of inactivity
     clearTimeout(state.eraserTimer);
     if (pad.eraseTool) {
       state.eraserTimer = setTimeout(() => {
@@ -588,7 +657,6 @@ async function boot() {
     }
   });
 
-  // Reset eraser timer on each eraser use
   inkCanvas.addEventListener("pointerdown", () => {
     if (pad.eraseTool) {
       clearTimeout(state.eraserTimer);
@@ -604,10 +672,9 @@ async function boot() {
   document.addEventListener("fullscreenchange", syncFullscreenUI);
   document.addEventListener("webkitfullscreenchange", syncFullscreenUI);
 
-  // Music toggle
   btnMusic.addEventListener("click", toggleMusic);
 
-  // Reset button: abort current turn
+  // Reset button
   btnReset.addEventListener("click", () => {
     if (state.busy) {
       state.abort?.abort();
@@ -622,7 +689,14 @@ async function boot() {
     }
   });
 
-  // Easter egg: 6 clicks on app icon → /admin
+  // Dim toggle button
+  btnDim.addEventListener("click", () => {
+    state.dimmed = !state.dimmed;
+    document.body.classList.toggle("dim-controls", state.dimmed);
+    btnDim.classList.toggle("active", state.dimmed);
+  });
+
+  // Easter egg
   pageIcon.addEventListener("click", handleIconClick);
 
   window.addEventListener("resize", () => { syncRotation(); });

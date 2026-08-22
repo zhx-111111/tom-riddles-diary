@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#d8e2f8">
+<meta name="theme-color" content="#1a1520">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Riddle's Diary">
@@ -16,7 +16,10 @@
 </head>
 <body>
 
-<!-- Page-level header: app icon + title (top-left, topmost layer, hidden in fullscreen) -->
+<!-- Animated canvas background -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- Page-level header: app icon + title -->
 <div id="page-header">
   <div id="page-icon">
     <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
@@ -41,8 +44,8 @@
   <span id="page-title">Tom Riddle's Daily</span>
 </div>
 
-<!-- Music floating button (hidden in fullscreen) -->
-<button id="btn-music" class="float-btn" title="Play / Pause Music" aria-label="Play or Pause Music">
+<!-- Music floating button -->
+<button id="btn-music" class="float-btn hidden" title="Play / Pause Music" aria-label="Play or Pause Music">
   <svg class="ic-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
   <svg class="ic-pause hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
 </button>
@@ -66,7 +69,7 @@
         </button>
       </div>
 
-      <!-- fullscreen: top-right of paper (landscape only in fullscreen) -->
+      <!-- fullscreen + landscape: top-right of paper -->
       <div id="ctl-right" class="ctl">
         <button id="btn-landscape" class="btn-glass icon-btn fs-only" title="Landscape" aria-label="Landscape">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -84,15 +87,24 @@
         </button>
       </div>
 
-      <!-- Reset button: bottom-right of paper -->
-      <button id="btn-reset" class="btn-glass icon-btn reset-btn hidden" title="Reset" aria-label="Reset current turn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-          <path d="M3 3v5h5"/>
-        </svg>
-      </button>
+      <!-- Bottom-right: reset + opacity toggle -->
+      <div class="paper-bottom-right">
+        <button id="btn-reset" class="btn-glass icon-btn hidden" title="Reset" aria-label="Reset current turn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </button>
+        <button id="btn-dim" class="btn-glass icon-btn" title="Dim Controls" aria-label="Toggle control opacity">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+            <line x1="4" y1="4" x2="20" y2="20" stroke-width="2"/>
+          </svg>
+        </button>
+      </div>
 
-      <!-- the guide, summoned by drawing a large ? -->
+      <!-- the guide -->
       <div id="guide" class="glass-card hidden">
         <div id="guide-content">
           <h2>The Diary</h2>
@@ -107,7 +119,7 @@
   </div>
 </div>
 
-<!-- Footer area (below the paper, editable from admin) -->
+<!-- Footer -->
 <div id="page-footer">
   <div id="footer-content" class="footer-sandbox"></div>
 </div>

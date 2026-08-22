@@ -26,6 +26,7 @@ export class InkPad {
     this.eraseTool = false;
     this.color = "#221610";
     this.strokeScale = 1.0;
+    this.pressureMul = 1.5;  // configurable from admin
     this.penScale = 1.0;
     this.w = 0; this.h = 0; this.dpr = 1;
     this.onChange = null;
@@ -71,7 +72,7 @@ export class InkPad {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
-  // Enhanced pressure sensitivity: bigger response to smaller pressure changes
+  // Enhanced pressure sensitivity: configurable multiplier
   widthFor(pt, prev) {
     let wf = 1;
     if (prev) {
@@ -80,10 +81,11 @@ export class InkPad {
       const v = d / dt;
       wf = clamp(1.15 - v * 0.18, 0.72, 1.18);
     }
-    // Enhanced pressure: amplified curve for more responsive width changes
+    // Enhanced pressure with configurable sensitivity
     const p = clamp(pt.p, 0, 1);
-    const pf = 0.25 + Math.pow(p, 0.7) * 1.8;  // steeper curve at low pressure
-    return 2.15 * this.penScale * this.strokeScale * wf * pf * 2;
+    const sens = this.pressureMul || 1.5;
+    const pf = 0.15 + Math.pow(p, 1.0 / sens) * (1.6 + sens * 0.3);
+    return 1.8 * this.penScale * this.strokeScale * wf * pf * 2;
   }
 
   pointerDown(e) {
@@ -311,22 +313,22 @@ export class InkPad {
     });
   }
 
-  /// Detects a lone large "?" — with relaxed thresholds for mobile.
+  /// Detects a lone large "?" — very relaxed thresholds for mobile.
   looksLikeQuestionMark() {
     const strokes = this.strokes.map((s) => s.pts);
-    if (!strokes.length || strokes.length > 3) return false;
+    if (!strokes.length || strokes.length > 4) return false;
     const k = this.h / 1872;
     let mainI = 0;
     for (let i = 1; i < strokes.length; i++) if (strokes[i].length > strokes[mainI].length) mainI = i;
     const main = strokes[mainI];
-    if (main.length < 8) return false; // relaxed from 12
+    if (main.length < 5) return false; // very relaxed
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of main) {
       x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
       x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
     }
     const w = x1 - x0, h = y1 - y0;
-    if (h < 200 * k || w < 50 * k || h < w * 0.8) return false; // relaxed
+    if (h < 120 * k || w < 25 * k || h < w * 0.5) return false; // very relaxed
     for (let i = 0; i < strokes.length; i++) {
       if (i === mainI) continue;
       const s = strokes[i];
@@ -335,23 +337,23 @@ export class InkPad {
         dx0 = Math.min(dx0, p.x); dy0 = Math.min(dy0, p.y);
         dx1 = Math.max(dx1, p.x); dy1 = Math.max(dy1, p.y);
       }
-      if (Math.max(dx1 - dx0, dy1 - dy0) > 100 * k) return false;
-      if ((dy0 + dy1) / 2 < y0 + h * 0.55) return false;
-      if ((dx0 + dx1) / 2 < x0 - 100 * k || (dx0 + dx1) / 2 > x1 + 100 * k) return false;
+      if (Math.max(dx1 - dx0, dy1 - dy0) > 120 * k) return false;
+      if ((dy0 + dy1) / 2 < y0 + h * 0.50) return false;
+      if ((dx0 + dx1) / 2 < x0 - 120 * k || (dx0 + dx1) / 2 > x1 + 120 * k) return false;
     }
     const pts = main.map((p) => [p.x, p.y]);
     if (pts[0][1] > pts[pts.length - 1][1]) pts.reverse();
     const start = pts[0], end = pts[pts.length - 1];
-    if (start[1] > y0 + h * 0.45 || end[1] < y0 + h * 0.50) return false;
+    if (start[1] > y0 + h * 0.50 || end[1] < y0 + h * 0.45) return false;
     let topMinX = Infinity, topMaxX = -Infinity, topMaxXy = 0;
     for (const [x, y] of pts) {
-      if (y <= y0 + h * 0.45) {
+      if (y <= y0 + h * 0.50) {
         if (x > topMaxX) { topMaxX = x; topMaxXy = y; }
         topMinX = Math.min(topMinX, x);
       }
     }
-    if (topMaxX === -Infinity || topMaxX - topMinX < w * 0.45) return false; // relaxed
-    if (topMaxXy < y0 + h * 0.06) return false;
+    if (topMaxX === -Infinity || topMaxX - topMinX < w * 0.30) return false; // relaxed
+    if (topMaxXy < y0 + h * 0.04) return false;
     return true;
   }
 }

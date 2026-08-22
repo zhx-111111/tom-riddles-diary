@@ -1,7 +1,5 @@
 /* Tom Riddle's Diary — front end styles.
-   Apple-style frosted glass controls, letter-paper themes, fullscreen and
-   forced-landscape layouts. Dark mode dims background + controls only;
-   the letter paper itself never changes. */
+   Canvas-based flowing background, Apple frosted glass, dark mode support. */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -16,9 +14,8 @@
 html, body {
   height: 100%;
   overflow: hidden;
-  background: linear-gradient(125deg, #dbe6fb 0%, #e6defa 30%, #dff2ea 55%, #fbf0d6 80%, #ffe4ee 100%);
+  background: #1a1520;
   overscroll-behavior: none;
-  transition: filter 0.6s ease;
 }
 
 body {
@@ -30,17 +27,26 @@ body {
   color-scheme: light dark;
 }
 
-/* Dark mode: dim background and controls, paper stays unchanged */
+/* Dark mode: slightly deeper background */
 @media (prefers-color-scheme: dark) {
-  html, body {
-    filter: brightness(0.82);
-  }
+  html, body { background: #0e0a14; }
   #page-header { color: #e0d8c8; }
   #page-footer { color: #bbb4a4; }
   .float-btn { background: rgba(80, 70, 60, 0.55) !important; color: #e0d8c8 !important; }
 }
 
 .hidden { display: none !important; }
+
+/* ------------------------------------------------------------------ bg canvas */
+
+#bg-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
 
 /* ------------------------------------------------------------------ page header */
 
@@ -54,14 +60,14 @@ body {
   gap: 10px;
   pointer-events: auto;
   transition: opacity 0.4s ease;
-  color: #3a2c1a;
+  color: #d8d0c0;
 }
 
 #page-icon {
   width: 36px;
   height: 36px;
   cursor: pointer;
-  filter: drop-shadow(0 3px 8px rgba(40, 30, 80, 0.28));
+  filter: drop-shadow(0 3px 8px rgba(40, 30, 80, 0.5));
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
@@ -75,9 +81,9 @@ body {
   letter-spacing: 0.04em;
   opacity: 0.75;
   white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 
-/* Hide page header in fullscreen */
 body.fs #page-header { opacity: 0; pointer-events: none; }
 
 /* ------------------------------------------------------------------ float btn */
@@ -91,9 +97,9 @@ body.fs #page-header { opacity: 0; pointer-events: none; }
   border: 1px solid rgba(255, 255, 255, 0.22);
   -webkit-backdrop-filter: blur(18px) saturate(1.7);
   backdrop-filter: blur(18px) saturate(1.7);
-  background: rgba(128, 128, 128, 0.18);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  color: #3a2c1a;
+  background: rgba(128, 128, 128, 0.25);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  color: #d8d0c0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -117,6 +123,7 @@ body.writing .float-btn { opacity: 0.15; }
   position: fixed;
   inset: 0;
   transform-origin: center center;
+  z-index: 1;
 }
 
 #stage.rotated {
@@ -146,7 +153,6 @@ body.writing .float-btn { opacity: 0.15; }
   overflow: hidden;
 }
 
-/* Fullscreen: the paper fills everything. */
 body.fs #desk { padding: 0; }
 body.fs #paper {
   width: 100% !important;
@@ -157,44 +163,11 @@ body.fs #paper {
   box-shadow: none;
 }
 
-/* Liquid-glass desk: soft pastel blobs drifting in real time */
-.blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(72px);
-  opacity: 0.50;
-  pointer-events: none;
-  will-change: transform;
-  z-index: 0;
-}
-.blob.k0 { animation: driftA var(--dur, 26s) ease-in-out var(--delay, 0s) infinite alternate; }
-.blob.k1 { animation: driftB var(--dur, 30s) ease-in-out var(--delay, 0s) infinite alternate; }
-.blob.k2 { animation: driftC var(--dur, 24s) ease-in-out var(--delay, 0s) infinite alternate; }
-
-@keyframes driftA {
-  0%   { transform: translate(0, 0) scale(1); }
-  33%  { transform: translate(6vmax, -5vmax) scale(1.12); }
-  66%  { transform: translate(-4vmax, 6vmax) scale(0.96); }
-  100% { transform: translate(9vmax, -7vmax) scale(1.18); }
-}
-@keyframes driftB {
-  0%   { transform: translate(0, 0) scale(1.05); }
-  33%  { transform: translate(-7vmax, 4vmax) scale(0.94); }
-  66%  { transform: translate(5vmax, -6vmax) scale(1.1); }
-  100% { transform: translate(-10vmax, 6vmax) scale(0.9); }
-}
-@keyframes driftC {
-  0%   { transform: translate(0, 0) scale(0.95); }
-  33%  { transform: translate(4vmax, 6vmax) scale(1.08); }
-  66%  { transform: translate(-6vmax, 3vmax) scale(1); }
-  100% { transform: translate(6vmax, 9vmax) scale(1.12); }
-}
-
 /* ------------------------------------------------------------------ paper */
 
 #paper {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   overflow: hidden;
   border-radius: 8px;
   box-shadow:
@@ -286,12 +259,16 @@ body.fs #paper {
   right: max(10px, env(safe-area-inset-right));
 }
 
-/* Reset button: bottom-right */
-.reset-btn {
+/* Bottom-right buttons row: reset + opacity toggle */
+.paper-bottom-right {
   position: absolute;
   bottom: max(10px, env(safe-area-inset-bottom));
   right: max(10px, env(safe-area-inset-right));
   z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.45s ease;
 }
 
 /* Apple-style frosted glass. */
@@ -324,16 +301,21 @@ body.fs #paper {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 0 0 1.5px rgba(255, 255, 255, 0.55);
 }
 
-/* 15% opacity during writing (was 20%) */
+/* 15% opacity during writing */
 body.writing .ctl { opacity: 0.15; }
-body.writing .reset-btn { opacity: 0.15; }
+body.writing .paper-bottom-right { opacity: 0.15; }
 body.writing .ctl .btn-glass,
 body.writing .ctl .swatch {
   -webkit-backdrop-filter: blur(30px) saturate(2);
   backdrop-filter: blur(30px) saturate(2);
 }
+
+/* Manual dim mode: user toggled low opacity */
+body.dim-controls .ctl { opacity: 0.15; }
+body.dim-controls .paper-bottom-right { opacity: 0.15; }
+
 .ctl:hover { opacity: 1; }
-.reset-btn:hover { opacity: 1; }
+.paper-bottom-right:hover { opacity: 1; }
 .ctl:hover .btn-glass, .ctl:hover .swatch {
   -webkit-backdrop-filter: blur(18px) saturate(1.7);
   backdrop-filter: blur(18px) saturate(1.7);
@@ -412,7 +394,6 @@ body.fs .fs-only { display: flex !important; }
 .glass-card em { font-style: italic; }
 .glass-card b { font-family: "Dancing Script", cursive; font-size: 1.35em; }
 
-/* Guide sandbox: isolate admin-provided HTML */
 #guide-content {
   all: initial;
   display: block;
@@ -420,14 +401,7 @@ body.fs .fs-only { display: flex !important; }
   color: inherit;
   text-align: center;
 }
-#guide-content * {
-  max-width: 100%;
-  word-wrap: break-word;
-}
-
-@media (prefers-color-scheme: light) {
-  .glass-card { background: rgba(46, 38, 28, 0.55); }
-}
+#guide-content * { max-width: 100%; word-wrap: break-word; }
 
 /* ------------------------------------------------------------------ footer */
 
@@ -440,7 +414,7 @@ body.fs .fs-only { display: flex !important; }
   text-align: center;
   padding: 6px 16px max(6px, env(safe-area-inset-bottom));
   font-size: 12px;
-  color: #6f6a61;
+  color: #9a9488;
   opacity: 0.7;
   transition: opacity 0.4s ease;
   pointer-events: none;
@@ -448,32 +422,15 @@ body.fs .fs-only { display: flex !important; }
 
 body.fs #page-footer { opacity: 0; pointer-events: none; }
 
-/* Footer sandbox: isolate admin HTML to prevent style leakage */
 .footer-sandbox {
   display: inline-block;
   all: initial;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 12px;
-  color: #6f6a61;
+  color: #9a9488;
   text-align: center;
   pointer-events: auto;
 }
-.footer-sandbox * {
-  max-width: 100%;
-  word-wrap: break-word;
-}
-.footer-sandbox a {
-  color: #5b4fc4;
-  text-decoration: underline;
-}
-.footer-sandbox img {
-  max-height: 40px;
-  max-width: 100%;
-  vertical-align: middle;
-}
-
-@media (prefers-color-scheme: dark) {
-  #page-footer { color: #bbb4a4; }
-  .footer-sandbox { color: #bbb4a4; }
-  .footer-sandbox a { color: #9b8fe4; }
-}
+.footer-sandbox * { max-width: 100%; word-wrap: break-word; }
+.footer-sandbox a { color: #8b7fe4; text-decoration: underline; }
+.footer-sandbox img { max-height: 40px; max-width: 100%; vertical-align: middle; }

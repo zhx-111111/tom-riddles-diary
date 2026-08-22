@@ -323,12 +323,89 @@ async function adminForget(req, env) {
   return json({ ok: true, deleted });
 }
 
+// ------------------------------------------------------- file upload / serve
+
+async function handleUpload(req, env) {
+  if (!(await checkToken(env, req))) return json({ error: "unauthorized" }, 401);
+  if (!env.DIARY_KV) return json({ error: "KV not bound" }, 409);
+  try {
+    const ct = req.headers.get("content-type") || "";
+    let ab, fileName, fileType;
+    if (ct.indexOf("multipart/form-data") === 0) {
+      const fd = await req.formData();
+      const file = fd.get("file");
+      if (!file) return json({ error: "no file" }, 400);
+      ab = await file.arrayBuffer();
+      fileName = file.name || "upload";
+      fileType = file.type || "application/octet-stream";
+    } else {
+      ab = await req.arrayBuffer();
+      fileName = req.headers.get("X-File-Name") || "upload.bin";
+      fileType = ct || "application/octet-stream";
+    }
+    if (!ab || ab.byteLength === 0) return json({ error: "empty file" }, 400);
+    // Max 25MB
+    if (ab.byteLength > 25 * 1024 * 1024) return json({ error: "file too large" }, 413);
+    // Generate key
+    const hashBuf = await crypto.subtle.digest("SHA-256", ab);
+    const hashArr = new Uint8Array(hashBuf);
+    let hashStr = "";
+    for (let i = 0; i < 8; i++) {
+      const h = hashArr[i].toString(16);
+      hashStr += h.length === 1 ? "0" + h : h;
+  }
+    const prefix = fileType.indexOf("audio/") === 0 ? "aud" : "file";
+    const key = prefix + "_" + hashStr;
+    await env.DIARY_KV.put(key, ab, {
+      metadata: { contentType: fileType, fileName, uploadedAt: new Date().toISOString() },
+    });
+    return json({ ok: true, key, url: "/file/" + key, size: ab.byteLength, type: fileType, name: fileName });
+  } catch (e) {
+    return json({ error: "upload failed: " + e.message }, 500);
+  }
+}
+
+async function serveFile(key, env) {
+  if (!env.DIARY_KV) return new Response("KV not configured", { status: 500 });
+  try {
+    const r = await env.DIARY_KV.getWithMetadata(key, { type: "arrayBuffer" });
+    if (!r || !r.value) return new Response("Not found", { status: 404 });
+    const ct = (r.metadata && r.metadata.contentType) || "application/octet-stream";
+    return new Response(r.value, {
+      headers: {
+        "Content-Type": ct,
+        "Content-Length": String(r.value.byteLength),
+        "Cache-Control": "public, max-age=86400",
+        "Accept-Ranges": "bytes",
+      },
+    });
+  } catch (e) {
+    return new Response("Error: " + e.message, { status: 500 });
+  }
+}
+
 // ------------------------------------------------------------------ router
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     const p = url.pathname;
+
+    // WeChat verification file — served at root without auth
+    if (p.length > 1 && !p.startsWith("/api/") && !p.startsWith("/file/") && p !== "/admin" && p !== "/") {
+      const cfg = await loadConfig(env);
+      if (cfg.wechatVerifyName && p === "/" + cfg.wechatVerifyName) {
+        return new Response(cfg.wechatVerifyContent || "", {
+          status: 200,
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        });
+      }
+    }
+
+    // File serve: /file/:key
+    if (p.startsWith("/file/")) {
+      return serveFile(p.slice(6), env);
+    }
 
     if (p.startsWith("/api/")) {
       if (req.method === "POST" && p === "/api/login") {
@@ -358,6 +435,9 @@ export default {
           reply: entry.r || "",
           strokes: entry.s || [],
         });
+      }
+      if (p === "/api/upload" && req.method === "POST") {
+        return handleUpload(req, env);
       }
       if (p === "/api/admin/state") return adminState(req, env);
       if (p === "/api/admin/config" && req.method === "POST") return adminConfig(req, env);

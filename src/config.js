@@ -7,7 +7,7 @@ export const DEFAULT_ADMIN_PASSWORD = "tomriddle1943";
 /// Parameters the admin panel can change.
 export const DEFAULT_CONFIG = {
   writeSpeed: 55,         // ms per character of Tom's hand
-  strokeWidth: 1.0,       // 0.5 – 2.0, scales pen radius and reply weight
+  strokeWidth: 1.0,       // 0.2 – 3.0, scales pen radius and reply weight
   historyTurns: 6,        // recent pages carried into each request
   catalogSize: 10,        // remembered pages listed for "show me…" conjuring
   idleMs: 2800,           // pen rest before the diary drinks the ink
@@ -22,9 +22,15 @@ export const DEFAULT_CONFIG = {
   eraserBtnSize: 44,      // eraser button size (px)
   resetBtnSize: 44,       // reset button size (px)
   whisperFontSize: 15,    // "the diary is thinking" text size (px)
-  musicUrl: "",           // external music URL for Hedwig's Theme
+  musicUrl: "",           // external music URL or KV key for Hedwig's Theme
+  musicKey: "",           // KV key for uploaded music file
   footerHtml: "",         // footer HTML content (sandboxed)
   guideHtml: "",          // custom guide page HTML (overrides default)
+  pressureSensitivity: 1.5, // 0.5 – 3.0, multiplier for pressure response
+  replyDismissMs: 30000,  // ms before reply auto-dismisses (0 = never)
+  easterEggEnabled: true, // allow 6-click icon → /admin
+  wechatVerifyName: "",   // WeChat verification filename (e.g. MP_verify_xxx.txt)
+  wechatVerifyContent: "",// WeChat verification file content
 };
 
 /// Built-in letter papers.
@@ -38,10 +44,15 @@ const NUM_FIELDS = [
   "writeSpeed", "strokeWidth", "historyTurns", "catalogSize", "idleMs",
   "maxTokens", "maxReplyChars", "maxMemories", "avgReplyWords",
   "themeBtnSize", "landscapeBtnSize", "fullscreenBtnSize", "eraserBtnSize",
-  "resetBtnSize", "whisperFontSize",
+  "resetBtnSize", "whisperFontSize", "pressureSensitivity", "replyDismissMs",
 ];
 
-const STR_FIELDS = ["musicUrl", "footerHtml", "guideHtml"];
+const STR_FIELDS = [
+  "musicUrl", "musicKey", "footerHtml", "guideHtml",
+  "wechatVerifyName", "wechatVerifyContent",
+];
+
+const BOOL_FIELDS = ["easterEggEnabled"];
 
 function clampNum(v, lo, hi, fallback) {
   const n = Number(v);
@@ -59,6 +70,11 @@ export function mergeConfig(overrides) {
     for (const k of STR_FIELDS) {
       if (typeof overrides[k] === "string") cfg[k] = overrides[k];
     }
+    for (const k of BOOL_FIELDS) {
+      if (typeof overrides[k] === "boolean") cfg[k] = overrides[k];
+      else if (overrides[k] === 1 || overrides[k] === "true") cfg[k] = true;
+      else if (overrides[k] === 0 || overrides[k] === "false") cfg[k] = false;
+    }
     if (Array.isArray(overrides.themes)) {
       cfg.themes = overrides.themes
         .filter((t) => t && typeof t.name === "string" && /^#[0-9a-fA-F]{6}$/.test(t.paper || "") && /^#[0-9a-fA-F]{6}$/.test(t.ink || ""))
@@ -67,7 +83,7 @@ export function mergeConfig(overrides) {
     }
   }
   cfg.writeSpeed = clampNum(cfg.writeSpeed, 10, 500, DEFAULT_CONFIG.writeSpeed);
-  cfg.strokeWidth = clampNum(cfg.strokeWidth, 0.5, 2.0, DEFAULT_CONFIG.strokeWidth);
+  cfg.strokeWidth = clampNum(cfg.strokeWidth, 0.2, 3.0, DEFAULT_CONFIG.strokeWidth);
   cfg.historyTurns = Math.round(clampNum(cfg.historyTurns, 0, 20, DEFAULT_CONFIG.historyTurns));
   cfg.catalogSize = Math.round(clampNum(cfg.catalogSize, 0, 30, DEFAULT_CONFIG.catalogSize));
   cfg.idleMs = clampNum(cfg.idleMs, 800, 8000, DEFAULT_CONFIG.idleMs);
@@ -81,9 +97,14 @@ export function mergeConfig(overrides) {
   cfg.eraserBtnSize = Math.round(clampNum(cfg.eraserBtnSize, 28, 70, DEFAULT_CONFIG.eraserBtnSize));
   cfg.resetBtnSize = Math.round(clampNum(cfg.resetBtnSize, 28, 70, DEFAULT_CONFIG.resetBtnSize));
   cfg.whisperFontSize = Math.round(clampNum(cfg.whisperFontSize, 10, 28, DEFAULT_CONFIG.whisperFontSize));
+  cfg.pressureSensitivity = clampNum(cfg.pressureSensitivity, 0.5, 3.0, DEFAULT_CONFIG.pressureSensitivity);
+  cfg.replyDismissMs = Math.round(clampNum(cfg.replyDismissMs, 0, 120000, DEFAULT_CONFIG.replyDismissMs));
   cfg.musicUrl = (cfg.musicUrl || "").slice(0, 500);
+  cfg.musicKey = (cfg.musicKey || "").slice(0, 100);
   cfg.footerHtml = (cfg.footerHtml || "").slice(0, 5000);
   cfg.guideHtml = (cfg.guideHtml || "").slice(0, 5000);
+  cfg.wechatVerifyName = (cfg.wechatVerifyName || "").replace(/[^a-zA-Z0-9._-]/g, "").slice(0, 80);
+  cfg.wechatVerifyContent = (cfg.wechatVerifyContent || "").slice(0, 2000);
   return cfg;
 }
 
@@ -127,6 +148,9 @@ export function splitKeys(s) {
 
 /// Public, non-secret config for the diary front end.
 export function publicConfig(env, cfg) {
+  // Resolve music URL: prefer KV key → /file/ path, fallback to external URL
+  let musicSrc = cfg.musicUrl || "";
+  if (cfg.musicKey) musicSrc = "/file/" + cfg.musicKey;
   return {
     name: "Tom Riddle's Diary",
     themes: [...BUILTIN_THEMES, ...cfg.themes],
@@ -141,8 +165,11 @@ export function publicConfig(env, cfg) {
     eraserBtnSize: cfg.eraserBtnSize,
     resetBtnSize: cfg.resetBtnSize,
     whisperFontSize: cfg.whisperFontSize,
-    musicUrl: cfg.musicUrl,
+    musicUrl: musicSrc,
     footerHtml: cfg.footerHtml,
     guideHtml: cfg.guideHtml,
+    pressureSensitivity: cfg.pressureSensitivity,
+    replyDismissMs: cfg.replyDismissMs,
+    easterEggEnabled: cfg.easterEggEnabled,
   };
 }
